@@ -1,0 +1,239 @@
+name: karmayogi_mobile
+description: It enables individual officials to recognize competency gaps and close them.
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `pub publish`. This is preferred for private packages.
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-numb er, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+version: 4.2.11+89
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  cupertino_icons: ^1.0.8
+  # A composable, Future-based library for making HTTP requests.
+  # http: ^1.0.0
+  # This package allows to use Google Fonts in the app.
+  google_fonts: ^6.2.1
+  # A wrapper around InheritedWidget to make them easier to use and more reusable.
+  provider: ^6.1.5
+  # The following adds Simple Equality Comparisons to your application.
+  equatable: ^2.0.7
+  # Flutter Secure Storage provides API to store data in secure storage.
+  flutter_secure_storage: ^9.2.4
+  # An SVG rendering and widget library for Flutter, which allows painting and displaying Scalable Vector Graphics 1.1 files.
+  flutter_svg: ^2.2.0
+  # A simple implementation of the Moment.js features for relative time.
+  simple_moment: ^1.1.1
+  # Pre built animations for flutter
+  animations: ^2.0.11
+  # Library to launch a url in flutter mobile applications
+  url_launcher: ^6.3.2
+  # A SQLite database is a file in the file system identified by a path.
+  sqflite: ^2.4.1
+  # A comprehensive, cross-platform path manipulation library for Dart.
+  path: ^1.9.0
+  # Provides internationalization and localization facilities, including message translation, plurals and genders, date/number formatting and parsing, and bidirectional text.
+  intl: ^0.20.2
+  # A Flutter plugin for iOS and Android for picking images from the image library, and taking new pictures with the camera.
+  image_picker: ^1.1.2
+  # An autocomplete textfield for flutter
+  autocomplete_textfield: ^2.0.1
+  # The video_player plugin provides low-level access to video playback.
+  chewie: ^1.11.0
+  # A Flutter plugin for iOS, Android and Web for playing back video on a Widget surface.
+  video_player: ^2.9.5
+  # A Flutter package for building Flutter widget tree from HTML with support for IFRAME, VIDEO and 70+ other tags.
+  flutter_widget_from_html: ^0.15.1
+  # A Flutter plugin that provides a WebView widget.
+  webview_flutter: 4.13.0
+  flutter_inappwebview: 6.1.5
+  # To decode jwt token
+  jwt_decoder: ^2.0.1
+  # To create animated splash screen in a fully customizable way.
+  animated_splash_screen: ^1.3.0 ## till here done
+  # #Permission plugin for Flutter. This plugin provides a cross-platform (iOS, Android) API to request and check permissions.
+  permission_handler: ^12.0.1
+  # #A pdf producer for Dart. It can create pdf files for both web or flutter.
+  pdf: ^3.11.3
+  #Flutter plugin for accepting incoming links - App/Deep Links (Android), Universal Links and Custom URL schemes (iOS).
+
+  # Drag And Drop gives you the freedom of creating a reorder the GridViewItems simple by Drag And Drop.
+  reorderables:
+    ^0.6.0
+    # A Flutter plugin to get the ANDROID_ID for android and identifierForVendor for iOS platforms.
+  unique_identifier: ^0.4.0
+  #Flutter plugin for sharing content via the platform share UI, using the ACTION_SEND intent on Android and UIActivityViewController on iOS
+  share_plus: ^11.0.0
+  #Flutter plugin for getting commonly used locations on host platform file systems, such as the temp and app data directories.
+  path_provider: ^2.1.4
+  #A plugin that provides you with intermediate PDF rendering APIs and easy-to-use Flutter Widgets.
+  # pdf_render: ^1.3.7
+  #Provides server and web apps the ability to load, manipulate, and save images with various image file formats including PNG, JPEG, GIF, BMP, WebP, TIFF, TGA, PSD, PVR, and OpenEXR.
+  image: ^4.5.4
+  #Introduction/Onboarding package for flutter app with some customizations possibilities
+  introduction_screen: ^3.1.17
+  #A pure Dart library that checks for internet by opening a socket to a list of specified addresses, each with individual port and timeout. Defaults are provided for convenience.
+  internet_connection_checker: ^3.0.1
+  #Flutter plugin for discovering the state of the network (WiFi & mobile/cellular) connectivity on Android and iOS.
+  connectivity_plus: ^6.1.4
+  #Flutter plugin for Firebase Core, enabling connecting to multiple Firebase apps.
+  firebase_core: ^3.15.1
+  #Flutter plugin for Firebase Cloud Messaging, a cross-platform messaging solution that lets you reliably deliver messages on Android and iOS.
+  firebase_messaging: ^15.2.9
+  #A cross platform plugin for displaying and scheduling local notifications for Flutter applications with the ability to customize for each platform.
+  flutter_local_notifications: ^18.0.0
+  #A plug-in that can call native APP to open files with string result in flutter, support iOS(UTI) / android(intent) / PC(ffi) / web(dart:html)
+  #URL-> https://pub.dev/packages/open_file
+  # open_file: ^3.3.2
+  # open_file_safe: ^3.2.3
+  open_file_plus: ^3.4.1+1
+
+  #Android App Links, Deep Links, iOs Universal Links and Custom URL schemes handler for Flutter
+  app_links: ^6.4.0
+  #Clip your widgets with custom shapes provided.
+  clippy_flutter: ^2.0.0-nullsafety.1
+  #Flutter plugin for playing or streaming inline YouTube videos using the official iFrame player API
+  youtube_player_flutter: ^9.1.2
+  #To add staggered animations to your ListView, GridView, Column and Row children as shown in Material Design guidelines
+  flutter_staggered_animations: ^1.1.1
+  #A Flutter package to Showcase/Highlight widgets step by step.
+  showcaseview: ^4.0.1
+  app_settings: ^6.1.1
+  widget_size: ^1.0.0
+  envied: ^1.1.1
+  # translator: ^0.1.7
+  # record: ^4.4.4
+  #Flutter plugin from firebase for analytics annd crashlytics
+  firebase_analytics: ^11.5.2
+  firebase_crashlytics: ^4.3.9
+  #Flutter plugins to get location of user for attendance marking
+  geolocator: ^13.0.4
+  # Flutter Localization is a package use for in-app localization with map data
+  flutter_localizations:
+    sdk: flutter
+  smooth_video_progress: ^0.0.4
+  # Customizable animated page indicator with a set of built-in effects
+  smooth_page_indicator: ^1.2.1
+  # A flutter plugin to show tooltip. Works on both Android & iOS.
+  just_the_tooltip: ^0.0.12
+  # A flutter plugin to add animations using lottie json files. Works on both Android & iOS.
+  lottie: ^3.3.1
+  dotted_decoration: ^2.0.0
+  # A flutter plugin requests to provide store rating.
+  in_app_review: ^2.0.10
+  dropdown_button2: ^2.3.9
+  animated_flip_counter: ^0.3.4
+  # A flutter plugin to render network image and store in cache to avoid repeative calls.
+  cached_network_image: ^3.4.1
+  flutter_native_badge: ^1.0.5+dev
+  # Make an animated circular countdown using Circular Countdown Timer.
+  circular_countdown_timer: ^0.2.3
+  # A flutter plugin to fit ui for variable size screen
+  flutter_screenutil: ^5.9.3
+  extended_wrap: ^0.1.5
+  # A flutter plugin to request notification permission on app launch. Works on both Android & iOS.
+  notification_permissions: ^0.6.1
+  # A flutter plugin for handling PDF files. Works on both Android & iOS.
+  pdfx: 2.8.0
+  # A flutter plugin to download file by uri. Works on both Android & iOS.
+  internet_file: ^1.2.0
+  #Flutter plugin to scan QR code to mark attendence
+  qr_code_scanner_plus: ^2.0.10+1
+  #Flutter package to do Cryptography
+  encrypt: ^5.0.1
+  #iGot plugin to http calls with ttl with encryption
+  igot_http_service_helper: ^0.1.0
+  #iGot plugin to import ui components for reuse
+  igot_ui_components: ^0.1.0
+  # A flutter plugin to Netcore SDK base
+  smartech_base: 3.5.1
+  # A flutter plugin to Netcore SDK for push notification
+  smartech_push: 3.5.3
+  # A flutter plugin to Netcore SDK for inbox messaging
+  smartech_appinbox: 3.5.4
+  visibility_detector: ^0.4.0+2
+  flutter_xlider: ^3.5.0
+  #emji picker used in comment section
+  emoji_picker_flutter: ^4.3.0
+
+  flutter_launcher_icons: ^0.14.4
+  #Flutter package to let users easily add a dashed border around any widget
+  dotted_border: ^2.1.0
+  #scan qrcode & barcode in widget tree with custom options.Accurately decode qrcode & barcode image from path
+  scan: ^1.6.0
+  table_calendar: ^3.2.0
+  device_calendar: ^4.3.3
+  #Rich text editor
+  html_editor_enhanced: ^2.6.0
+  #file picker for post discussion
+  file_picker: ^8.2.1
+  web_socket_channel: ^3.0.2
+  # Collections and utilities functions and classes related to collections
+  collection: ^1.19.0
+  # An image cropper that is customizable. You can rotate, scale and translate either through gestures or a controller
+  custom_image_crop: ^0.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_rating_bar: ^4.0.1
+  envied_generator: ^1.1.1
+  build_runner: ^2.4.15
+  #sqflite ffi based implementation, for desktop and units tests.
+  sqflite_common_ffi:
+  #Coverage provides coverage data collection, manipulation, and formatting for Dart.
+  coverage: ^1.15.0
+  #A mock framework inspired by Mockito with APIs for Fakes, Mocks, behavior verification, and stubbing
+  mockito: 5.4.5
+
+dependency_overrides:
+  firebase_core_platform_interface: 6.0.0
+  http: ^1.4.0
+  intl: ^0.20.2
+  # Lightweight browser API bindings built around JS interop.
+  web: ^1.1.1
+  #Flutter plugin providing detailed information about the device (make, model, etc.), and Android or iOS version the app is running on.
+  device_info_plus: ^10.1.1
+  analyzer: ^6.2.0
+
+# The following section is specific to Flutter.
+flutter:
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  generate: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/img/
+    - assets/smileys/
+    - assets/animations/
+    - assets/launcher_icons/
+
+flutter_icons:
+  ios: true
+  android: true
+  image_path_android: "assets/launcher_icons/ic_launcher.png"
+  image_path_ios: "assets/launcher_icons/ic_launcher.png"
+  adaptive_icon_foreground: "assets/launcher_icons/launcher_ic.png" # only available for Android 8.0 devices and above
+  adaptive_icon_background: "assets/launcher_icons/background.png" # only available for Android 8.0 devices and above
+  adaptive_icon_monochrome: "assets/launcher_icons/monochrome.png" # only available for Android 13 devices and above
+  remove_alpha_ios: true

@@ -1,0 +1,13 @@
+export '_respositories/competency_repository.dart';
+export '_respositories/discuss_repository.dart';
+export '_respositories/login_respository.dart';
+export '_respositories/network_respository.dart';
+export '_respositories/category_repoistory.dart';
+export '_respositories/learn_repository.dart';
+export '_respositories/profile_repository.dart';
+export '_respositories/event_repository.dart';
+export '_respositories/nps_repository.dart';
+export '_respositories/chatbot_repository.dart';
+export '_respositories/landing_page_repository.dart';
+export '_respositories/in_app_review_repository.dart';
+export '_respositories/igot_ai_repository.dart';

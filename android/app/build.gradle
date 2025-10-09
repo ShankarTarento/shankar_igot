@@ -1,0 +1,118 @@
+plugins {
+    id "com.android.application" 
+    id "kotlin-android" 
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+    id "com.google.firebase.crashlytics" 
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace = "com.igot.igot_karmayogi_mobile"
+    compileSdkVersion 35
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled true
+    }
+    kotlinOptions {
+        jvmTarget=17
+    }
+
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId "com.igot.karmayogibharat"
+        minSdkVersion 21
+        targetSdkVersion 35
+        multiDexEnabled true
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    flavorDimensions "default"
+
+    productFlavors {
+        prod {
+            applicationId "com.igot.karmayogibharat"
+            resValue "string", "app_name", "iGOT Karmayogi"  
+        }
+        uat {
+            applicationId "com.igot.karmayogibharat.uat"
+            resValue "string", "app_name", "UAT-iGOT Karmayogi"
+        }
+        dev {
+            applicationId "com.igot.karmayogibharat.dev"
+            resValue "string", "app_name", "DEV-iGOT Karmayogi"
+        }
+        qa {
+            applicationId "com.igot.karmayogibharat.qa"
+            resValue "string", "app_name", "QA-iGOT Karmayogi"
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    implementation "androidx.multidex:multidex:2.0.1"
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'androidx.core:core-ktx:1.15.0'
+    implementation 'com.google.firebase:firebase-messaging-directboot:24.0.3'
+    implementation 'com.google.firebase:firebase-crashlytics'
+    api "com.netcore.android:smartech-sdk:${SMARTECH_BASE_SDK_VERSION}"
+    api "com.netcore.android:smartech-push:${SMARTECH_PUSH_SDK_VERSION}"
+    api "com.netcore.android:smartech-appinbox:${SMARTECH_APPINBOX_SDK_VERSION}"
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
+
+    implementation 'androidx.work:work-runtime-ktx:2.10.0'
+}

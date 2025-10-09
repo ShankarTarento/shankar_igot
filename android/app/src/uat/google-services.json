@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "241942387335",
+    "project_id": "igot-karmayogi-689be",
+    "storage_bucket": "igot-karmayogi-689be.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241942387335:android:a467c915d6ead15f3d7622",
+        "android_client_info": {
+          "package_name": "com.igot.karmayogibharat.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDt9FMHaMA_MJH8HtI8AAWtN1RAZx1au3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241942387335:android:e417284e789d03033d7622",
+        "android_client_info": {
+          "package_name": "com.igot.karmayogibharat.qa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDt9FMHaMA_MJH8HtI8AAWtN1RAZx1au3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241942387335:android:7c545dbba187b9d03d7622",
+        "android_client_info": {
+          "package_name": "com.igot.karmayogibharat.uat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDt9FMHaMA_MJH8HtI8AAWtN1RAZx1au3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

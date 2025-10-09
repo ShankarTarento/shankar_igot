@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SmartechKeys</key>
+	<dict>
+		<key>SmartechNotificationIcon</key>
+		<string>MyAppIcon</string>
+		<key>SmartechAppGroup</key>
+		<string>group.com.karmayogi.app</string>
+	</dict>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>UNNotificationExtensionUserInteractionEnabled</key>
+			<true/>
+			<key>UNNotificationExtensionDefaultContentHidden</key>
+			<true/>
+			<key>UNNotificationExtensionCategory</key>
+			<array>
+				<string>SmartechCarouselLandscapeNotification</string>
+				<string>SmartechCarouselLandscapeNotification</string>
+				<string>SmartechPN</string>
+			</array>
+			<key>UNNotificationExtensionInitialContentSizeRatio</key>
+			<real>0.25</real>
+		</dict>
+		<key>NSExtensionMainStoryboard</key>
+		<string>MainInterface</string>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.usernotifications.content-extension</string>
+	</dict>
+</dict>
+</plist>
