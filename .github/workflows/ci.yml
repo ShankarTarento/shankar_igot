@@ -52,8 +52,12 @@ jobs:
         run: |
           echo "Creating .env file for flavor: ${{ matrix.flavor }}"
           if [ "${{ matrix.flavor }}" = "qa" ]; then
+            echo "Creating .env file from secret QA_ENV..."
             echo "${{ secrets.QA_ENV }}" > .env.qa
             cp .env.qa .env
+            echo ".env file created with the following content:"
+            cat .env.qa
+    
           elif [ "${{ matrix.flavor }}" = "uat" ]; then
             echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
             cp .env.uat .env
