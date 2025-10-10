@@ -7,7 +7,7 @@ const String IOS_BUNDLE_ID = 'in.nic.igot.karmayogi';
 const String ANDROID_BUNDLE_ID = 'com.igot.karmayogibharat';
 const String APP_VERSION = '4.2.11';
 const String APP_NAME = 'iGOT Karmayogi';
-const String APP_ENVIRONMENT = Environment.prod;
+const String APP_ENVIRONMENT = Environment.qa;
 const String TELEMETRY_ID = 'api.sunbird.telemetry';
 const String DEFAULT_CHANNEL = 'igot';
 // ignore: non_constant_identifier_names

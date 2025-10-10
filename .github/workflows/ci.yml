@@ -1,0 +1,120 @@
+name: Minimal Test
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flavor: [qa]
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        # ✅ Clones your repo so the workflow has access to your code
+
+      # Step 2: Install dependencies needed for the runner
+      # - name: Install dependencies for act
+      #   run: |
+      #     echo "Installing system dependencies..."
+      #     if command -v sudo >/dev/null 2>&1; then
+      #       sudo apt-get update
+      #       sudo apt-get install -y jq curl git unzip xz-utils zip wget openjdk-11-jdk
+      #     else
+      #       apt-get update
+      #       apt-get install -y jq curl git unzip xz-utils zip wget openjdk-11-jdk
+      #     fi
+      #     echo "System dependencies installed."
+
+      # Step 3: Set up Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+        # ✅ Installs specified Flutter version in the runner
+
+      # Step 4: Fix Flutter SDK ownership issue
+      # - name: Fix Flutter SDK ownership
+      #   run: |
+      #     echo "Fixing Flutter SDK ownership..."
+      #     git config --global --add safe.directory /opt/hostedtoolcache/flutter/stable-3.27.1-x64
+
+      # Step 5: Install Flutter dependencies
+      - name: Install Flutter dependencies
+        run: |
+          echo "Running flutter pub get..."
+          flutter pub get
+          echo "Flutter dependencies installed."
+
+      # Step 6: Create environment file for the current flavor
+      - name: Create .env file for ${{ matrix.flavor }}
+        run: |
+          echo "Creating .env file for flavor: ${{ matrix.flavor }}"
+          if [ "${{ matrix.flavor }}" = "qa" ]; then
+            echo "${{ secrets.QA_ENV_FILE }}" > .env.qa
+            cp .env.qa .env
+          elif [ "${{ matrix.flavor }}" = "uat" ]; then
+            echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
+            cp .env.uat .env
+          else
+            echo "${{ secrets.PROD_ENV_FILE }}" > .env.prod
+            cp .env.prod .env
+          fi
+          echo ".env file created."
+
+      # Step 7: Generate env.dart using build_runner
+      - name: Generate env.dart for ${{ matrix.flavor }}
+        run: |
+          echo "Generating env.dart..."
+          flutter pub run build_runner build --delete-conflicting-outputs
+          echo "env.dart generated."
+
+      # # Step 8: Install Java 17 (required by Gradle)
+      # - name: Install Java 17
+      #   run: |
+      #     echo "Installing Java 17..."
+      #     sudo apt-get install -y openjdk-17-jdk
+      #     export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      #     export PATH=$JAVA_HOME/bin:$PATH
+      #     java -version
+      #     echo "Java 17 installed and JAVA_HOME set."
+
+      # Step 9: Decode keystore from secret
+      - name: Set up release keystore
+        run: |
+          echo "Decoding keystore from secret..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          ls -l android/app/  # ✅ Verify keystore exists
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      # Step 10: Create key.properties file dynamically
+      - name: Create key.properties for signing
+        run: |
+          echo "Creating key.properties file..."
+          echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+          echo "storeFile=upload-keystore.jks" >> android/key.properties
+          cat android/key.properties  # ✅ Print contents (without secrets)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      # # Step 11: Build APK
+      # - name: Build APK for ${{ matrix.flavor }}
+      #   run: |
+      #     echo "Building APK for flavor: ${{ matrix.flavor }}..."
+      #     flutter build apk --flavor ${{ matrix.flavor }} --obfuscate --split-debug-info=build/debug-info/${{ matrix.flavor }} --release
+      #     echo "APK build completed."
+
+      # # Step 12: Upload build artifacts
+      # - name: Upload build artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: flutter-build-artifacts-${{ matrix.flavor }}
+      #     path: |
+      #       build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
+      #       build/debug-info/${{ matrix.flavor }}
