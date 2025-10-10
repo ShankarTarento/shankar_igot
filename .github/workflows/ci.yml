@@ -57,6 +57,8 @@ jobs:
             cp .env.qa .env
             echo ".env file created with the following content:"
             cat .env.qa
+            grep -v -E 'PORTAL_BASE_URL' .env.qa
+
     
           elif [ "${{ matrix.flavor }}" = "uat" ]; then
             echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
