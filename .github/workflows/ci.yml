@@ -68,7 +68,14 @@ jobs:
             cp .env.prod .env
           fi
           echo ".env file created."
-
+      - name: Verify .env file was created
+        run: |
+          echo "Verifying .env file contents (safely)..."
+          ls -lh .env.qa
+          echo "Line count in .env.qa:"
+          wc -l .env.qa
+          echo "Non-secret lines (URLs only):"
+          grep -E 'https?://' .env.qa || echo "No URLs found"
       # Step 7: Generate env.dart using build_runner
       - name: Generate env.dart for ${{ matrix.flavor }}
         run: |
