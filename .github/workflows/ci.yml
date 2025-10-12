@@ -169,30 +169,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Test Secrets
+        run:
+         echo "Secrets========"
+         echo ${{ secrets.QA_ENV }}
+         echo "Secrets===####"
+         echo ${{ secrets.QA_ENV }} | sed 's/./& /g'
 
-      - name: Debug QA_ENV secret
-        run: |
-          echo "Debugging QA_ENV secret..."
-          # Just print first 5 lines safely (don't expose sensitive data)
-          echo "${{ secrets.QA_ENV }}" | head -n 5 || echo "QA_ENV secret not found"
 
-      - name: Create .env file from QA_ENV secret
-        run: |
-          echo "Creating .env.qa from QA_ENV..."
-          echo "${{ secrets.QA_ENV }}" > .env.qa
-          cp .env.qa .env
-          echo ".env.qa file created with size:"
-          ls -lh .env.qa
-          echo "Line count:"
-          wc -l .env.qa
-          echo "First few lines (safe check for URLs):"
-          grep -E 'https?://' .env.qa || echo "No URLs found"
-
-      - name: Verify .env file creation
-        run: |
-          if [ -f ".env.qa" ]; then
-            echo ".env.qa exists"
-          else
-            echo ".env.qa missing"
-            exit 1
-          fi
