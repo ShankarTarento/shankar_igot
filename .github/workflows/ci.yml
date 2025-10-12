@@ -28,10 +28,10 @@ jobs:
       #     echo "System dependencies installed."
 
       # Step 3: Set up Flutter
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.27.1'
+      # - name: Set up Flutter
+      #   uses: subosito/flutter-action@v2
+      #   with:
+      #     flutter-version: '3.27.1'
         # ✅ Installs specified Flutter version in the runner
 
       # Step 4: Fix Flutter SDK ownership issue
@@ -41,11 +41,11 @@ jobs:
       #     git config --global --add safe.directory /opt/hostedtoolcache/flutter/stable-3.27.1-x64
 
       # Step 5: Install Flutter dependencies
-      - name: Install Flutter dependencies
-        run: |
-          echo "Running flutter pub get..."
-          flutter pub get
-          echo "Flutter dependencies installed."
+      # - name: Install Flutter dependencies
+      #   run: |
+      #     echo "Running flutter pub get..."
+      #     flutter pub get
+      #     echo "Flutter dependencies installed."
 
       # Step 6: Create environment file for the current flavor
       - name: Create .env file for ${{ matrix.flavor }}
@@ -75,7 +75,7 @@ jobs:
           echo "Number of lines:"
           wc -l .env.qa   
           
-          
+
       - name: Verify .env file was created
         run: |
           echo "Verifying .env file contents (safely)..."
@@ -84,12 +84,30 @@ jobs:
           wc -l .env.qa
           echo "Non-secret lines (URLs only):"
           grep -E 'https?://' .env.qa || echo "No URLs found"
-      # Step 7: Generate env.dart using build_runner
-      - name: Generate env.dart for ${{ matrix.flavor }}
+
+      - name: Create .env file for QA
         run: |
-          echo "Generating env.dart..."
-          flutter pub run build_runner build --delete-conflicting-outputs
-          echo "env.dart generated."
+          echo "Creating .env file from QA_ENV..."
+          echo "${{ secrets.QA_ENV }}" | tr '\n' '\n' > .env.qa || echo "${{ secrets.QA_ENV }}" | sed 's/\\n/\n/g' > .env.qa
+          cp .env.qa .env
+          echo ".env file created:"
+          wc -l .env.qa
+
+          
+      - name: Debug .env line count and sample
+        run: |
+          echo "File info:"
+          ls -lh .env.qa
+          echo "Number of lines:"
+          wc -l .env.qa
+          echo "First few lines (safe):"
+          head -n 5 .env.qa
+      # Step 7: Generate env.dart using build_runner
+      # - name: Generate env.dart for ${{ matrix.flavor }}
+      #   run: |
+      #     echo "Generating env.dart..."
+      #     flutter pub run build_runner build --delete-conflicting-outputs
+      #     echo "env.dart generated."
 
       # # Step 8: Install Java 17 (required by Gradle)
       # - name: Install Java 17
@@ -102,27 +120,27 @@ jobs:
       #     echo "Java 17 installed and JAVA_HOME set."
 
       # Step 9: Decode keystore from secret
-      - name: Set up release keystore
-        run: |
-          echo "Decoding keystore from secret..."
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-          ls -l android/app/  # ✅ Verify keystore exists
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      # - name: Set up release keystore
+      #   run: |
+      #     echo "Decoding keystore from secret..."
+      #     echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+      #     ls -l android/app/  # ✅ Verify keystore exists
+      #   env:
+      #     KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       # Step 10: Create key.properties file dynamically
-      - name: Create key.properties for signing
-        run: |
-          echo "Creating key.properties file..."
-          echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
-          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
-          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-          echo "storeFile=upload-keystore.jks" >> android/key.properties
-          cat android/key.properties  # ✅ Print contents (without secrets)
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      # - name: Create key.properties for signing
+      #   run: |
+      #     echo "Creating key.properties file..."
+      #     echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
+      #     echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+      #     echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+      #     echo "storeFile=upload-keystore.jks" >> android/key.properties
+      #     cat android/key.properties  # ✅ Print contents (without secrets)
+      #   env:
+      #     KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      #     KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      #     KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       # # Step 11: Build APK
       # - name: Build APK for ${{ matrix.flavor }}
