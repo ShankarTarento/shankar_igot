@@ -55,9 +55,8 @@ jobs:
             echo "Creating .env file from secret QA_ENV..."
             echo "${{ secrets.QA_ENV }}" > .env.qa
             cp .env.qa .env
-            echo ".env file created with the following content:"
-            cat .env.qa
-            grep -v -E 'PORTAL_BASE_URL' .env.qa
+            echo ".env file created with the following URLs:"
+            grep -E 'https?://' .env.qa || echo "No URLs found."
 
     
           elif [ "${{ matrix.flavor }}" = "uat" ]; then
