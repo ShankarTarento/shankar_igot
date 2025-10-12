@@ -1,17 +1,17 @@
-name: Minimal Test
-on: workflow_dispatch
+# name: Minimal Test
+# on: workflow_dispatch
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        flavor: [qa]
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     strategy:
+#       matrix:
+#         flavor: [qa]
 
-    steps:
+#     steps:
       # Step 1: Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # - name: Checkout repository
+      #   uses: actions/checkout@v4
         # ✅ Clones your repo so the workflow has access to your code
 
       # Step 2: Install dependencies needed for the runner
@@ -48,60 +48,60 @@ jobs:
       #     echo "Flutter dependencies installed."
 
       # Step 6: Create environment file for the current flavor
-      - name: Create .env file for ${{ matrix.flavor }}
-        run: |
-          echo "Creating .env file for flavor: ${{ matrix.flavor }}"
-          if [ "${{ matrix.flavor }}" = "qa" ]; then
-            echo "Creating .env file from secret QA_ENV..."
-            echo "${{ secrets.QA_ENV }}" > .env.qa
-            cp .env.qa .env
-            echo ".env file created with the following URLs:"
-            grep -E 'https?://' .env.qa || echo "No URLs found."
+      # - name: Create .env file for ${{ matrix.flavor }}
+      #   run: |
+      #     echo "Creating .env file for flavor: ${{ matrix.flavor }}"
+      #     if [ "${{ matrix.flavor }}" = "qa" ]; then
+      #       echo "Creating .env file from secret QA_ENV..."
+      #       echo "${{ secrets.QA_ENV }}" > .env.qa
+      #       cp .env.qa .env
+      #       echo ".env file created with the following URLs:"
+      #       grep -E 'https?://' .env.qa || echo "No URLs found."
 
     
-          elif [ "${{ matrix.flavor }}" = "uat" ]; then
-            echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
-            cp .env.uat .env
-          else
-            echo "${{ secrets.PROD_ENV_FILE }}" > .env.prod
-            cp .env.prod .env
-          fi
-          echo ".env file created."
+      #     elif [ "${{ matrix.flavor }}" = "uat" ]; then
+      #       echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
+      #       cp .env.uat .env
+      #     else
+      #       echo "${{ secrets.PROD_ENV_FILE }}" > .env.prod
+      #       cp .env.prod .env
+      #     fi
+      #     echo ".env file created."
 
-      - name: Verify .env file
-        run: |
-          echo "File info:"
-          ls -lh .env.qa
-          echo "Number of lines:"
-          wc -l .env.qa   
+      # - name: Verify .env file
+      #   run: |
+      #     echo "File info:"
+      #     ls -lh .env.qa
+      #     echo "Number of lines:"
+      #     wc -l .env.qa   
           
 
-      - name: Verify .env file was created
-        run: |
-          echo "Verifying .env file contents (safely)..."
-          ls -lh .env.qa
-          echo "Line count in .env.qa:"
-          wc -l .env.qa
-          echo "Non-secret lines (URLs only):"
-          grep -E 'https?://' .env.qa || echo "No URLs found"
+      # - name: Verify .env file was created
+      #   run: |
+      #     echo "Verifying .env file contents (safely)..."
+      #     ls -lh .env.qa
+      #     echo "Line count in .env.qa:"
+      #     wc -l .env.qa
+      #     echo "Non-secret lines (URLs only):"
+      #     grep -E 'https?://' .env.qa || echo "No URLs found"
 
-      - name: Create .env file for QA
-        run: |
-          echo "Creating .env file from QA_ENV..."
-          echo "${{ secrets.QA_ENV }}" | tr '\n' '\n' > .env.qa || echo "${{ secrets.QA_ENV }}" | sed 's/\\n/\n/g' > .env.qa
-          cp .env.qa .env
-          echo ".env file created:"
-          wc -l .env.qa
+      # - name: Create .env file for QA
+      #   run: |
+      #     echo "Creating .env file from QA_ENV..."
+      #     echo "${{ secrets.QA_ENV }}" | tr '\n' '\n' > .env.qa || echo "${{ secrets.QA_ENV }}" | sed 's/\\n/\n/g' > .env.qa
+      #     cp .env.qa .env
+      #     echo ".env file created:"
+      #     wc -l .env.qa
 
-          
-      - name: Debug .env line count and sample
-        run: |
-          echo "File info:"
-          ls -lh .env.qa
-          echo "Number of lines:"
-          wc -l .env.qa
-          echo "First few lines (safe):"
-          head -n 5 .env.qa
+
+      # - name: Debug .env line count and sample
+      #   run: |
+      #     echo "File info:"
+      #     ls -lh .env.qa
+      #     echo "Number of lines:"
+      #     wc -l .env.qa
+      #     echo "First few lines (safe):"
+      #     head -n 5 .env.qa
       # Step 7: Generate env.dart using build_runner
       # - name: Generate env.dart for ${{ matrix.flavor }}
       #   run: |
@@ -157,3 +157,42 @@ jobs:
       #     path: |
       #       build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
       #       build/debug-info/${{ matrix.flavor }}
+name: Test Secrets Env
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-secrets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Debug QA_ENV secret
+        run: |
+          echo "Debugging QA_ENV secret..."
+          # Just print first 5 lines safely (don't expose sensitive data)
+          echo "${{ secrets.QA_ENV }}" | head -n 5 || echo "QA_ENV secret not found"
+
+      - name: Create .env file from QA_ENV secret
+        run: |
+          echo "Creating .env.qa from QA_ENV..."
+          echo "${{ secrets.QA_ENV }}" > .env.qa
+          cp .env.qa .env
+          echo ".env.qa file created with size:"
+          ls -lh .env.qa
+          echo "Line count:"
+          wc -l .env.qa
+          echo "First few lines (safe check for URLs):"
+          grep -E 'https?://' .env.qa || echo "No URLs found"
+
+      - name: Verify .env file creation
+        run: |
+          if [ -f ".env.qa" ]; then
+            echo ".env.qa exists"
+          else
+            echo ".env.qa missing"
+            exit 1
+          fi
