@@ -16,72 +16,144 @@ jobs:
       # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: true  # Ensure clean checkout
 
-      # Step 2: Set up Flutter (may need adjustment for self-hosted)
-      # - name: Set up Flutter
-      #   uses: subosito/flutter-action@v2
-      #   with:
-      #     flutter-version: '3.27.1'
-      #     cache: true  # Enable caching for faster builds
+      # Step 2: Debug environment
+      - name: Debug environment
+        run: |
+          echo "=== Debug Information ==="
+          echo "Current directory: $(pwd)"
+          echo "Contents of current directory:"
+          ls -la
+          echo "User: $(whoami)"
+          echo "Home: $HOME"
+          echo "Workspace: $GITHUB_WORKSPACE"
+          echo "Runner: $RUNNER_NAME"
+          echo "Shell: $SHELL"
+          echo "PATH: $PATH"
+          echo "Flutter available: $(which flutter || echo 'Flutter not found')"
+          echo "Flutter version: $(flutter --version || echo 'Flutter command failed')"
+          echo "========================="
 
       # Step 3: Create .env file from Base64 secret
       - name: Create .env file for ${{ matrix.flavor }}
         run: |
+          echo "=== Creating .env file ==="
+          echo "Working in directory: $(pwd)"
           echo "Creating .env file for flavor: ${{ matrix.flavor }}..."
+          
           if [ "${{ matrix.flavor }}" = "qa" ]; then
+            echo "Processing QA environment..."
             echo "${{ secrets.QA_ENV }}" > .env.qa
             cp .env.qa .env
+            echo ".env.qa created successfully"
+            echo "File exists: $(ls -la .env.qa)"
             echo ".env.qa created safely with URLs:"
             grep -E 'https?://' .env.qa || echo "No URLs found"
           elif [ "${{ matrix.flavor }}" = "uat" ]; then
+            echo "Processing UAT environment..."
             echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
             cp .env.uat .env
+            echo ".env.uat created successfully"
           else
+            echo "Processing PROD environment..."
             echo "${{ secrets.PROD_ENV_FILE }}" > .env.prod
             cp .env.prod .env
+            echo ".env.prod created successfully"
           fi
+          
           echo ".env file created."
+          echo "Final .env files:"
+          ls -la .env*
 
       # Step 4: Verify .env file (safe, only prints URLs)
       - name: Verify .env file contents
         run: |
+          echo "=== Verifying .env file ==="
+          echo "Current directory: $(pwd)"
           echo "File info:"
-          ls -lh .env.${{ matrix.flavor }}
-          echo "Line count:"
-          wc -l .env.${{ matrix.flavor }}
-          echo "Non-secret lines (URLs only):"
-          grep -E 'https?://' .env.${{ matrix.flavor }} || echo "No URLs found"
+          ls -lh .env.${{ matrix.flavor }} || echo "File .env.${{ matrix.flavor }} not found"
+          if [ -f .env.${{ matrix.flavor }} ]; then
+            echo "Line count:"
+            wc -l .env.${{ matrix.flavor }}
+            echo "Non-secret lines (URLs only):"
+            grep -E 'https?://' .env.${{ matrix.flavor }} || echo "No URLs found"
+          fi
 
-      # Step 5: Generate env.dart for ${{ matrix.flavor }}
+      # Step 5: Check Flutter installation
+      - name: Check Flutter installation
+        run: |
+          echo "=== Flutter Check ==="
+          echo "Current PATH: $PATH"
+          echo "Flutter location: $(which flutter || echo 'Flutter not in PATH')"
+          echo "Flutter version:"
+          flutter --version || echo "Flutter command not available"
+          echo "Dart version:"
+          dart --version || echo "Dart command not available"
+
+      # Step 6: Install Flutter dependencies (if Flutter is available)
+      - name: Install Flutter dependencies
+        run: |
+          echo "=== Installing Flutter dependencies ==="
+          if command -v flutter &> /dev/null; then
+            flutter pub get
+          else
+            echo "Flutter not available, skipping dependencies"
+          fi
+
+      # Step 7: Generate env.dart for ${{ matrix.flavor }}
       - name: Generate env.dart for ${{ matrix.flavor }}
         run: |
-          echo "Generating env.dart..."
-          flutter pub run build_runner build --delete-conflicting-outputs
-          echo "env.dart generated."
+          echo "=== Generating env.dart ==="
+          echo "Current directory: $(pwd)"
+          if command -v flutter &> /dev/null; then
+            echo "Generating env.dart..."
+            flutter pub run build_runner build --delete-conflicting-outputs
+            echo "env.dart generated."
+          else
+            echo "Flutter not available, skipping env.dart generation"
+          fi
 
-      # Step 6: Decode keystore from secret
+      # Step 8: Decode keystore from secret
       - name: Set up release keystore
         run: |
+          echo "=== Setting up keystore ==="
+          echo "Current directory: $(pwd)"
+          echo "Creating android/app directory if it doesn't exist..."
+          mkdir -p android/app
           echo "Decoding keystore from secret..."
           echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
+          echo "Keystore files:"
           ls -l android/app/
 
-      # Step 7: Create key.properties for signing
+      # Step 9: Create key.properties for signing
       - name: Create key.properties for signing
         run: |
+          echo "=== Creating key.properties ==="
+          echo "Current directory: $(pwd)"
           echo "Creating key.properties..."
           echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
           echo "storeFile=upload-keystore.jks" >> android/key.properties
+          echo "key.properties created:"
           cat android/key.properties
 
-      # Step 8: Build APK
+      # Step 10: Build APK (only if Flutter is available)
       - name: Build APK for ${{ matrix.flavor }}
         run: |
-          flutter build apk --flavor ${{ matrix.flavor }} --obfuscate --split-debug-info=build/debug-info/${{ matrix.flavor }} --release
+          echo "=== Building APK ==="
+          echo "Current directory: $(pwd)"
+          if command -v flutter &> /dev/null; then
+            echo "Building APK for flavor: ${{ matrix.flavor }}"
+            flutter build apk --flavor ${{ matrix.flavor }} --obfuscate --split-debug-info=build/debug-info/${{ matrix.flavor }} --release
+          else
+            echo "Flutter not available, skipping APK build"
+            exit 1
+          fi
 
-      # Step 9: Upload build artifacts
+      # Step 11: Upload build artifacts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -89,3 +161,4 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
             build/debug-info/${{ matrix.flavor }}
+        if: success()  # Only upload if build succeeded
