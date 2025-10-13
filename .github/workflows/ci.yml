@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  # Changed from ubuntu-latest to self-hosted
     strategy:
       matrix:
         flavor: [qa]
@@ -17,23 +17,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Ruby (required for Fastlane)
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.1'
-
-      # Step 3: Install Fastlane
-      - name: Install Fastlane
-        run: gem install fastlane
-
-      # Step 4: Set up Flutter
+      # Step 2: Set up Flutter (may need adjustment for self-hosted)
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.1'
+          cache: true  # Enable caching for faster builds
 
-      # Step 5: Create .env file from Base64 secret
+      # Step 3: Create .env file from Base64 secret
       - name: Create .env file for ${{ matrix.flavor }}
         run: |
           echo "Creating .env file for flavor: ${{ matrix.flavor }}..."
@@ -51,7 +42,7 @@ jobs:
           fi
           echo ".env file created."
 
-      # Step 6: Verify .env file (safe, only prints URLs)
+      # Step 4: Verify .env file (safe, only prints URLs)
       - name: Verify .env file contents
         run: |
           echo "File info:"
@@ -61,21 +52,21 @@ jobs:
           echo "Non-secret lines (URLs only):"
           grep -E 'https?://' .env.${{ matrix.flavor }} || echo "No URLs found"
 
-      # Step 7: Generate env.dart for ${{ matrix.flavor }}
+      # Step 5: Generate env.dart for ${{ matrix.flavor }}
       - name: Generate env.dart for ${{ matrix.flavor }}
         run: |
           echo "Generating env.dart..."
           flutter pub run build_runner build --delete-conflicting-outputs
           echo "env.dart generated."
 
-      # Step 8: Decode keystore from secret
+      # Step 6: Decode keystore from secret
       - name: Set up release keystore
         run: |
           echo "Decoding keystore from secret..."
           echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
           ls -l android/app/
 
-      # Step 9: Create key.properties for signing
+      # Step 7: Create key.properties for signing
       - name: Create key.properties for signing
         run: |
           echo "Creating key.properties..."
@@ -85,14 +76,12 @@ jobs:
           echo "storeFile=upload-keystore.jks" >> android/key.properties
           cat android/key.properties
 
-      # Step 10: Run Fastlane to build APK
-      - name: Run Fastlane lane for ${{ matrix.flavor }}
-        env:
-          FLAVOR: ${{ matrix.flavor }}
+      # Step 8: Build APK
+      - name: Build APK for ${{ matrix.flavor }}
         run: |
-          fastlane android distribute
+          flutter build apk --flavor ${{ matrix.flavor }} --obfuscate --split-debug-info=build/debug-info/${{ matrix.flavor }} --release
 
-      # Step 11: Upload build artifacts
+      # Step 9: Upload build artifacts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
