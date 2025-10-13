@@ -23,13 +23,13 @@ jobs:
         with:
           flutter-version: '3.27.1' 
 
-      - name: Install Java 17
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          export PATH=$JAVA_HOME/bin:$PATH
-          java -version   
+      # - name: Install Java 17
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y openjdk-17-jdk
+      #     export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      #     export PATH=$JAVA_HOME/bin:$PATH
+      #     java -version   
 
       # Step 3: Create .env file from Base64 secret
       - name: Create .env file for ${{ matrix.flavor }}
@@ -67,7 +67,7 @@ jobs:
           flutter pub run build_runner build --delete-conflicting-outputs
           echo "env.dart generated."
 
-          
+
       # Step 5: Decode keystore from secret
 
       - name: Set up release keystore
