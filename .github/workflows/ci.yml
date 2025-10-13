@@ -18,7 +18,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           clean: true  # Ensure clean checkout
-
+      - name: Setup Flutter PATH
+        run: |
+          echo "Adding Flutter to PATH..."
+          export PATH="/home/shankarganeshi/Software/flutter_3.27.1/bin:$PATH"
+          echo "PATH=/home/shankarganeshi/Software/flutter_3.27.1/bin:$PATH" >> $GITHUB_ENV
+          echo "Flutter version:"
+          flutter --version
+          echo "Dart version:"
+          dart --version
       # Step 2: Debug environment
       - name: Debug environment
         run: |
