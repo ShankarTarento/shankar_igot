@@ -126,6 +126,55 @@ jobs:
           echo "Build outputs:"
           ls -la build/app/outputs/flutter-apk/ || echo "APK output directory not found"
 
+   # NEW: Firebase App Distribution Steps
+      - name: Setup Firebase Service Account
+        run: |
+          echo "=== Setting up Firebase credentials ==="
+          echo "${{ secrets.FIREBASE_SERVICE_TOKEN_BASE64 }}" | base64 --decode > firebase-service-account.json
+          echo "Firebase service account file created"
+          ls -la firebase-service-account.json
+
+      - name: Install Firebase CLI
+        run: |
+          echo "=== Installing Firebase CLI ==="
+          # Check if Firebase CLI is already installed
+          if ! command -v firebase &> /dev/null; then
+            echo "Installing Firebase CLI..."
+            curl -sL https://firebase.tools | bash
+          else
+            echo "Firebase CLI already installed"
+          fi
+          firebase --version
+
+      - name: Distribute to Firebase App Distribution
+        run: |
+          echo "=== Distributing to Firebase ==="
+          
+          # Set environment variables for Firebase
+          export GOOGLE_APPLICATION_CREDENTIALS="firebase-service-account.json"
+          
+          # Define APK path
+          APK_PATH="build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk"
+          
+          # Verify APK exists
+          if [ ! -f "$APK_PATH" ]; then
+            echo "ERROR: APK not found at $APK_PATH"
+            ls -la build/app/outputs/flutter-apk/
+            exit 1
+          fi
+          
+          echo "Uploading APK: $APK_PATH"
+          echo "App ID: ${{ secrets.QA_FIREBASE_APP_ID }}"
+          
+          # Upload to Firebase App Distribution
+          firebase appdistribution:distribute "$APK_PATH" \
+            --app "${{ secrets.QA_FIREBASE_APP_ID }}" \
+            --groups "${{ 'Dev' }}" \
+            --release-notes "Build from GitHub Actions - ${{ matrix.flavor }} flavor - $(date)" \
+            --debug
+          
+          echo "Firebase distribution completed!"
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -134,3 +183,11 @@ jobs:
             build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
             build/debug-info/${{ matrix.flavor }}
         if: success()
+
+      - name: Cleanup sensitive files
+        run: |
+          echo "=== Cleaning up ==="
+          rm -f firebase-service-account.json
+          rm -f android/key.properties
+          echo "Cleanup completed"
+        if: always()
