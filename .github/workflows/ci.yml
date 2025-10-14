@@ -1,648 +1,648 @@
-# name: generate-iGOT-build
-
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       flavor:
-#         description: 'Build flavor/environment'
-#         required: true
-#         default: 'qa'
-#         type: choice
-#         options:
-#           - qa
-#           - uat
-#           - prod
-#       release_notes:
-#         description: 'Release notes for this build'
-#         required: false
-#         default: 'Build from GitHub Actions'
-#         type: string
-#       runner_type:
-#         description: 'Runner type'
-#         required: true
-#         default: 'self-hosted'
-#         type: choice
-#         options:
-#           - self-hosted
-#           - github-hosted
-
-# env:
-#   FLUTTER_VERSION: "3.27.1"
-#   FLUTTER_PATH_SELF_HOSTED: "/home/shankarganeshi/Software/flutter_3.27.1/bin"
-#   RUNNER_NAME_SELF_HOSTED: "TI-LAP-949"
-#   RUNNER_NAME_GITHUB: "GitHub Runner"
-
-# jobs:
-#   build:
-#     name: Build & Deploy iGOT App
-#     runs-on: ${{ github.event.inputs.runner_type == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
-    
-#     steps:
-#       # =================
-#       # SETUP & CHECKOUT
-#       # =================
-#       - name: 📊 Record build start time
-#         id: start_time
-#         run: |
-#           echo "start_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
-#           echo "Build started at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-#           echo "Runner type: ${{ github.event.inputs.runner_type }}"
-
-#       - name: 📥 Checkout repository
-#         uses: actions/checkout@v4
-#         with:
-#           clean: true
-
-#       # =================
-#       # FLUTTER SETUP (CONDITIONAL)
-#       # =================
-#       - name: 🔧 Setup Flutter (Self-hosted)
-#         if: github.event.inputs.runner_type == 'self-hosted'
-#         run: |
-#           echo "=== Setting up Flutter for self-hosted runner ==="
-#           export PATH="${{ env.FLUTTER_PATH_SELF_HOSTED }}:$PATH"
-#           echo "PATH=${{ env.FLUTTER_PATH_SELF_HOSTED }}:$PATH" >> $GITHUB_ENV
-#           echo "RUNNER_NAME=${{ env.RUNNER_NAME_SELF_HOSTED }}" >> $GITHUB_ENV
-#           flutter --version
-#           echo "✅ Self-hosted Flutter setup completed"
-
-#       - name: 🔧 Setup Flutter (GitHub-hosted)
-#         if: github.event.inputs.runner_type == 'github-hosted'
-#         uses: subosito/flutter-action@v2
-#         with:
-#           flutter-version: ${{ env.FLUTTER_VERSION }}
-#           channel: stable
-#           cache: true
-
-#       - name: 🔧 Set GitHub runner name
-#         if: github.event.inputs.runner_type == 'github-hosted'
-#         run: |
-#           echo "RUNNER_NAME=${{ env.RUNNER_NAME_GITHUB }}" >> $GITHUB_ENV
-
-#       - name: ✅ Verify Flutter installation
-#         run: |
-#           echo "=== Verifying Flutter installation ==="
-#           flutter --version
-#           flutter doctor --verbose
-#           echo "✅ Flutter verification completed"
-
-#       # =================
-#       # JAVA SETUP (GitHub-hosted only)
-#       # =================
-#       - name: ☕ Setup Java (GitHub-hosted)
-#         if: github.event.inputs.runner_type == 'github-hosted'
-#         uses: actions/setup-java@v4
-#         with:
-#           distribution: 'zulu'
-#           java-version: '17'
-
-#       # =================
-#       # ENVIRONMENT SETUP
-#       # =================
-#       - name: 🌍 Create environment file
-#         run: |
-#           echo "=== Creating .env file for ${{ github.event.inputs.flavor }} ==="
-          
-#           case "${{ github.event.inputs.flavor }}" in
-#             "qa")
-#               if [ -z "${{ secrets.QA_ENV }}" ]; then
-#                 echo "ERROR: QA_ENV secret is empty or not set"
-#                 exit 1
-#               fi
-#               echo "${{ secrets.QA_ENV }}" > .env.qa
-#               cp .env.qa .env
-#               echo "✅ QA environment configured"
-#               ;;
-#             "uat")
-#               if [ -z "${{ secrets.UAT_ENV }}" ]; then
-#                 echo "ERROR: UAT_ENV secret is empty or not set"
-#                 exit 1
-#               fi
-#               echo "${{ secrets.UAT_ENV }}" > .env.uat
-#               cp .env.uat .env
-#               echo "✅ UAT environment configured"
-#               ;;
-#             "prod")
-#               if [ -z "${{ secrets.PROD_ENV }}" ]; then
-#                 echo "ERROR: PROD_ENV secret is empty or not set"
-#                 exit 1
-#               fi
-#               echo "${{ secrets.PROD_ENV }}" > .env.prod
-#               cp .env.prod .env
-#               echo "✅ PROD environment configured"
-#               ;;
-#           esac
-          
-#           echo "Environment: ${{ github.event.inputs.flavor }}"
-#           echo "File size: $(wc -c < .env) bytes"
-
-#       - name: 🔥 Setup Firebase configuration
-#         run: |
-#           echo "=== Setting up Firebase configuration for ${{ github.event.inputs.flavor }} ==="
-          
-#           case "${{ github.event.inputs.flavor }}" in
-#             "qa")
-#               echo "${{ secrets.QA_FIREBASE_CONFIG }}" > firebase-config.env
-#               ;;
-#             "uat")
-#               echo "${{ secrets.UAT_FIREBASE_CONFIG }}" > firebase-config.env
-#               ;;
-#             "prod")
-#               echo "${{ secrets.PROD_FIREBASE_CONFIG }}" > firebase-config.env
-#               ;;
-#           esac
-          
-#           # Load Firebase config and set environment variables
-#           source firebase-config.env
-#           echo "FIREBASE_ANDROID_APP_ID=$ANDROID_APP_ID" >> $GITHUB_ENV
-#           echo "FIREBASE_IOS_APP_ID=$IOS_APP_ID" >> $GITHUB_ENV
-#           echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
-          
-#           echo "✅ Firebase configuration loaded:"
-#           echo "   Environment: ${{ github.event.inputs.flavor }}"
-#           echo "   Project ID: $PROJECT_ID"
-#           echo "   Android App ID: $ANDROID_APP_ID"
-
-#       # =================
-#       # FLUTTER BUILD PREP
-#       # =================
-#       - name: 📦 Generate environment files
-#         run: |
-#           echo "=== Generating env.dart ==="
-#           flutter pub get
-#           flutter pub run build_runner build --delete-conflicting-outputs
-#           echo "✅ env.dart generation completed"
-
-#       - name: 🔑 Setup Android keystore
-#         run: |
-#           echo "=== Setting up Android keystore ==="
-#           mkdir -p android/app
-          
-#           # Decode and setup keystore
-#           echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
-          
-#           # Create key.properties
-#           cat > android/key.properties << EOF
-#           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-#           keyPassword=${{ secrets.KEY_PASSWORD }}
-#           keyAlias=${{ secrets.KEY_ALIAS }}
-#           storeFile=upload-keystore.jks
-#           EOF
-          
-#           echo "✅ Keystore setup completed"
-
-#       # =================
-#       # BUILD PROCESS
-#       # =================
-#       - name: 🏗️ Build Android APK
-#         run: |
-#           echo "=== Building Android APK for ${{ github.event.inputs.flavor }} ==="
-#           echo "Runner: ${{ github.event.inputs.runner_type }}"
-          
-#           flutter build apk \
-#             --flavor ${{ github.event.inputs.flavor }} \
-#             --obfuscate \
-#             --split-debug-info=build/debug-info/${{ github.event.inputs.flavor }} \
-#             --release
-          
-#           echo "✅ Android APK build completed"
-#           echo "Build outputs:"
-#           ls -la build/app/outputs/flutter-apk/ || echo "⚠️ APK output directory not found"
-
-#       # =================
-#       # FIREBASE SETUP & DISTRIBUTION
-#       # =================
-#       - name: 🔥 Setup Firebase service account
-#         run: |
-#           echo "=== Setting up Firebase credentials for ${{ github.event.inputs.flavor }} ==="
-          
-#           case "${{ github.event.inputs.flavor }}" in
-#             "qa")
-#               if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_QA }}" ]; then
-#                 echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_QA secret is empty or not set"
-#                 exit 1
-#               fi
-#               echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_QA }}" | base64 --decode > firebase-service-account.json
-#               echo "✅ QA Firebase service account configured"
-#               ;;
-#             "uat")
-#               if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_UAT }}" ]; then
-#                 echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_UAT secret is empty or not set"
-#                 exit 1
-#               fi
-#               echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_UAT }}" | base64 --decode > firebase-service-account.json
-#               echo "✅ UAT Firebase service account configured"
-#               ;;
-#             "prod")
-#               if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_PROD }}" ]; then
-#                 echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_PROD secret is empty or not set"
-#                 exit 1
-#               fi
-#               echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_PROD }}" | base64 --decode > firebase-service-account.json
-#               echo "✅ PROD Firebase service account configured"
-#               ;;
-#           esac
-          
-#           echo "Firebase service account file created for: ${{ github.event.inputs.flavor }}"
-
-#       - name: 🔥 Install Firebase CLI (GitHub-hosted)
-#         if: github.event.inputs.runner_type == 'github-hosted'
-#         run: |
-#           echo "=== Installing Firebase CLI on GitHub-hosted runner ==="
-#           npm install -g firebase-tools
-#           firebase --version
-#           echo "✅ Firebase CLI installed via npm"
-
-#       - name: 📝 Prepare release notes
-#         id: release_notes
-#         run: |
-#           echo "=== Preparing release notes ==="
-          
-#           USER_NOTES="${{ github.event.inputs.release_notes }}"
-#           if [ -z "$USER_NOTES" ] || [ "$USER_NOTES" = "Build from GitHub Actions" ]; then
-#             USER_NOTES="Standard build from GitHub Actions"
-#           fi
-          
-#           # Create formatted release notes
-#           cat > release-notes.txt << EOF
-#           🚀 iGOT ${{ github.event.inputs.flavor }} Build #${{ github.run_number }}
-
-#           📝 Release Notes:
-#           $USER_NOTES
-
-#           🔧 Build Details:
-#           • Environment: ${{ github.event.inputs.flavor }}
-#           • Build Number: #${{ github.run_number }}
-#           • Triggered by: ${{ github.actor }}
-#           • Branch: ${{ github.ref_name }}
-#           • Date: $(date '+%Y-%m-%d %H:%M:%S UTC')
-#           • Runner: ${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})
-#           EOF
-          
-#           echo "✅ Release notes prepared"
-#           echo "User notes: $USER_NOTES"
-
-#       - name: 🚀 Distribute to Firebase App Distribution
-#         run: |
-#           echo "=== Distributing Android APK to Firebase ==="
-          
-#           export GOOGLE_APPLICATION_CREDENTIALS="firebase-service-account.json"
-#           APK_PATH="build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk"
-          
-#           # Verify APK exists
-#           if [ ! -f "$APK_PATH" ]; then
-#             echo "❌ ERROR: Android APK not found at $APK_PATH"
-#             ls -la build/app/outputs/flutter-apk/
-#             exit 1
-#           fi
-          
-#           echo "Uploading: $APK_PATH"
-#           echo "Environment: ${{ github.event.inputs.flavor }}"
-#           echo "App ID: ${{ env.FIREBASE_ANDROID_APP_ID }}"
-#           echo "Project: ${{ env.FIREBASE_PROJECT_ID }}"
-#           echo "Runner: ${{ github.event.inputs.runner_type }}"
-          
-#           # Distribute to Firebase
-#           firebase appdistribution:distribute "$APK_PATH" \
-#             --app "${{ env.FIREBASE_ANDROID_APP_ID }}" \
-#             --groups "Dev" \
-#             --release-notes-file "release-notes.txt" \
-#             --debug
-          
-#           echo "✅ Firebase distribution completed for ${{ github.event.inputs.flavor }}!"
-
-#       # =================
-#       # BUILD INFO & NOTIFICATIONS
-#       # =================
-#       - name: 📊 Get build information
-#         id: build_info
-#         run: |
-#           APK_PATH="build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk"
-          
-#           if [ -f "$APK_PATH" ]; then
-#             APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
-#             echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
-#             echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-#             echo "build_status=success" >> $GITHUB_OUTPUT
-#             echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
-#           else
-#             echo "apk_size=N/A" >> $GITHUB_OUTPUT
-#             echo "apk_path=N/A" >> $GITHUB_OUTPUT
-#             echo "build_status=failed" >> $GITHUB_OUTPUT
-#             echo "❌ APK not found at expected location"
-#           fi
-
-#             - name: 📢 Send Teams notification - Success
-#         if: success()
-#         run: |
-#           echo "=== Sending Teams notification for Success ==="
-          
-#           # Calculate build duration
-#           START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
-#           END_TIME=$(date +%s)
-#           DURATION=$((END_TIME - START_TIME))
-#           DURATION_MIN=$((DURATION / 60))
-#           DURATION_SEC=$((DURATION % 60))
-          
-#           # Set environment-specific styling
-#           case "${{ github.event.inputs.flavor }}" in
-#             "qa")
-#               ENV_EMOJI="🧪"
-#               ENV_COLOR="Good"
-#               ;;
-#             "uat")
-#               ENV_EMOJI="🔄"
-#               ENV_COLOR="Good"
-#               ;;
-#             "prod")
-#               ENV_EMOJI="🚀"
-#               ENV_COLOR="Attention"
-#               ;;
-#           esac
-          
-#           # Set runner-specific emoji
-#           if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
-#             RUNNER_EMOJI="🖥️"
-#           else
-#             RUNNER_EMOJI="☁️"
-#           fi
-          
-#           # Prepare display notes (truncate if too long)
-#           USER_NOTES="${{ github.event.inputs.release_notes }}"
-#           if [ -z "$USER_NOTES" ] || [ "$USER_NOTES" = "Build from GitHub Actions" ]; then
-#             USER_NOTES="Standard build from GitHub Actions"
-#           fi
-#           DISPLAY_NOTES=$(echo "$USER_NOTES" | cut -c1-100)
-#           if [ ${#USER_NOTES} -gt 100 ]; then
-#             DISPLAY_NOTES="$DISPLAY_NOTES..."
-#           fi
-          
-#           # Send Teams notification
-#           curl -X POST \
-#             -H "Content-Type: application/json" \
-#             -d '{
-#               "attachments": [
-#                 {
-#                   "contentType": "application/vnd.microsoft.card.adaptive",
-#                   "content": {
-#                     "type": "AdaptiveCard",
-#                     "version": "1.2",
-#                     "body": [
-#                       {
-#                         "type": "TextBlock",
-#                         "text": "'$ENV_EMOJI' iGOT '${{ github.event.inputs.flavor }}' Build & Firebase Distribution Successful!",
-#                         "weight": "Bolder",
-#                         "size": "Medium",
-#                         "color": "'$ENV_COLOR'"
-#                       },
-#                       {
-#                         "type": "TextBlock",
-#                         "text": "📝 Release Notes: '$DISPLAY_NOTES'",
-#                         "wrap": true,
-#                         "spacing": "Medium",
-#                         "color": "Default"
-#                       },
-#                       {
-#                         "type": "FactSet",
-#                         "facts": [
-#                           {
-#                             "title": "🏷️ Environment:",
-#                             "value": "${{ github.event.inputs.flavor }}"
-#                           },
-#                           {
-#                             "title": "🔢 Build Number:",
-#                             "value": "#${{ github.run_number }}"
-#                           },
-#                           {
-#                             "title": "📦 APK Size:",
-#                             "value": "${{ steps.build_info.outputs.apk_size }}"
-#                           },
-#                           {
-#                             "title": "⏱️ Build Duration:",
-#                             "value": "'${DURATION_MIN}m ${DURATION_SEC}s'"
-#                           },
-#                           {
-#                             "title": "👤 Triggered by:",
-#                             "value": "${{ github.actor }}"
-#                           },
-#                           {
-#                             "title": "🌿 Branch:",
-#                             "value": "${{ github.ref_name }}"
-#                           },
-#                           {
-#                             "title": "🕒 Completed:",
-#                             "value": "$(date '+%Y-%m-%d %H:%M:%S UTC')"
-#                           },
-#                           {
-#                             "title": "'$RUNNER_EMOJI' Runner:",
-#                             "value": "${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})"
-#                           }
-#                         ]
-#                       }
-#                     ],
-#                     "actions": [
-#                       {
-#                         "type": "Action.OpenUrl",
-#                         "title": "📱 Download from Firebase",
-#                         "url": "https://appdistribution.firebase.dev/i/${{ env.FIREBASE_ANDROID_APP_ID }}"
-#                       },
-#                       {
-#                         "type": "Action.OpenUrl",
-#                         "title": "📋 View Build Logs",
-#                         "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-#                       },
-#                       {
-#                         "type": "Action.OpenUrl",
-#                         "title": "📦 GitHub Artifacts",
-#                         "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-#                       }
-#                     ]
-#                   }
-#                 }
-#               ]
-#             }' \
-#             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
-          
-#           echo "✅ Teams notification sent successfully!"
-
-#             - name: 📢 Send Teams notification - Failure
-#         if: failure()
-#         run: |
-#           echo "=== Sending Teams notification for Failure ==="
-          
-#           # Set runner-specific emoji
-#           if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
-#             RUNNER_EMOJI="🖥️"
-#           else
-#             RUNNER_EMOJI="☁️"
-#           fi
-          
-#           curl -X POST \
-#             -H "Content-Type: application/json" \
-#             -d '{
-#               "attachments": [
-#                 {
-#                   "contentType": "application/vnd.microsoft.card.adaptive",
-#                   "content": {
-#                     "type": "AdaptiveCard",
-#                     "version": "1.2",
-#                     "body": [
-#                       {
-#                         "type": "TextBlock",
-#                         "text": "❌ iGOT '${{ github.event.inputs.flavor }}' Build Failed!",
-#                         "weight": "Bolder",
-#                         "size": "Medium",
-#                         "color": "Attention"
-#                       },
-#                       {
-#                         "type": "FactSet",
-#                         "facts": [
-#                           {
-#                             "title": "🏷️ Environment:",
-#                             "value": "${{ github.event.inputs.flavor }}"
-#                           },
-#                           {
-#                             "title": "🔢 Build Number:",
-#                             "value": "#${{ github.run_number }}"
-#                           },
-#                           {
-#                             "title": "👤 Triggered by:",
-#                             "value": "${{ github.actor }}"
-#                           },
-#                           {
-#                             "title": "🌿 Branch:",
-#                             "value": "${{ github.ref_name }}"
-#                           },
-#                           {
-#                             "title": "🕒 Failed at:",
-#                             "value": "$(date '+%Y-%m-%d %H:%M:%S UTC')"
-#                           },
-#                           {
-#                             "title": "'$RUNNER_EMOJI' Runner:",
-#                             "value": "${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})"
-#                           }
-#                         ]
-#                       }
-#                     ],
-#                     "actions": [
-#                       {
-#                         "type": "Action.OpenUrl",
-#                         "title": "🔍 View Error Logs",
-#                         "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-#                       }
-#                     ]
-#                   }
-#                 }
-#               ]
-#             }' \
-#             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
-          
-#           echo "❌ Failure notification sent"
-
-#       # =================
-#       # ARTIFACTS & CLEANUP
-#       # =================
-#       - name: 📦 Upload build artifacts
-#         if: success()
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: flutter-build-artifacts-${{ github.event.inputs.flavor }}-${{ github.event.inputs.runner_type }}-${{ github.run_number }}
-#           path: |
-#             build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk
-#             build/debug-info/${{ github.event.inputs.flavor }}
-#             release-notes.txt
-#           retention-days: 30
-
-#       - name: 🧹 Cleanup sensitive files
-#         if: always()
-#         run: |
-#           echo "=== Cleaning up sensitive files ==="
-#           rm -f firebase-service-account.json
-#           rm -f android/key.properties
-#           rm -f firebase-config.env
-#           rm -f release-notes.txt
-#           echo "✅ Cleanup completed"
-name: test-github-actions
+name: Generate-iGOT-build
 
 on:
   workflow_dispatch:
     inputs:
-      test_message:
-        description: 'Test message'
-        required: false
-        default: 'Hello from GitHub Actions!'
-        type: string
-      runner_type:
-        description: 'Runner type to test'
+      flavor:
+        description: 'Build flavor/environment'
         required: true
-        default: 'github-hosted'
+        default: 'qa'
         type: choice
         options:
-          - github-hosted
+          - qa
+          - uat
+          - prod
+      release_notes:
+        description: 'Release notes for this build'
+        required: false
+        default: 'Build from GitHub Actions'
+        type: string
+      runner_type:
+        description: 'Runner type'
+        required: true
+        default: 'self-hosted'
+        type: choice
+        options:
           - self-hosted
+          - github-hosted
+
+env:
+  FLUTTER_VERSION: "3.27.1"
+  FLUTTER_PATH_SELF_HOSTED: "/home/shankarganeshi/Software/flutter_3.27.1/bin"
+  RUNNER_NAME_SELF_HOSTED: "TI-LAP-949"
+  RUNNER_NAME_GITHUB: "GitHub Runner"
 
 jobs:
-  test:
-    name: Test GitHub Actions
+  build:
+    name: Build & Deploy iGOT App
     runs-on: ${{ github.event.inputs.runner_type == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
-    timeout-minutes: 10
     
     steps:
-      - name: 🎯 Display test information
+      # =================
+      # SETUP & CHECKOUT
+      # =================
+      - name: 📊 Record build start time
+        id: start_time
         run: |
-          echo "=== GitHub Actions Test ==="
-          echo "Test Message: ${{ github.event.inputs.test_message }}"
-          echo "Runner Type: ${{ github.event.inputs.runner_type }}"
-          echo "Triggered by: ${{ github.actor }}"
-          echo "Repository: ${{ github.repository }}"
-          echo "Run ID: ${{ github.run_id }}"
-          echo "Run Number: ${{ github.run_number }}"
-          echo "=========================="
+          echo "start_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
+          echo "Build started at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Runner type: ${{ github.event.inputs.runner_type }}"
 
-      - name: 🖥️ System information
-        run: |
-          echo "=== System Information ==="
-          echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "Hostname: $(hostname)"
-          echo "User: $(whoami)"
-          echo "OS: $(uname -a)"
-          echo "Working Directory: $(pwd)"
-          echo "Available Space:"
-          df -h | head -5
-          echo "Memory:"
-          free -h
-          echo "=========================="
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          clean: true
 
-      - name: 🔧 Check basic tools
+      # =================
+      # FLUTTER SETUP (CONDITIONAL)
+      # =================
+      - name: 🔧 Setup Flutter (Self-hosted)
+        if: github.event.inputs.runner_type == 'self-hosted'
         run: |
-          echo "=== Tool Versions ==="
-          echo "Bash: $BASH_VERSION"
-          echo "Git: $(git --version)"
-          echo "Curl: $(curl --version | head -1)"
-          echo "Node: $(node --version 2>/dev/null || echo 'Not installed')"
-          echo "Python: $(python3 --version 2>/dev/null || echo 'Not installed')"
-          echo "=========================="
+          echo "=== Setting up Flutter for self-hosted runner ==="
+          export PATH="${{ env.FLUTTER_PATH_SELF_HOSTED }}:$PATH"
+          echo "PATH=${{ env.FLUTTER_PATH_SELF_HOSTED }}:$PATH" >> $GITHUB_ENV
+          echo "RUNNER_NAME=${{ env.RUNNER_NAME_SELF_HOSTED }}" >> $GITHUB_ENV
+          flutter --version
+          echo "✅ Self-hosted Flutter setup completed"
 
-      - name: 🌐 Network connectivity test
-        run: |
-          echo "=== Network Test ==="
-          echo "Testing GitHub connectivity..."
-          curl -s -I https://api.github.com | head -3
-          echo "Testing Google connectivity..."
-          curl -s -I https://www.google.com | head -3
-          echo "=========================="
+      - name: 🔧 Setup Flutter (GitHub-hosted)
+        if: github.event.inputs.runner_type == 'github-hosted'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
 
-      - name: ✅ Test completion
+      - name: 🔧 Set GitHub runner name
+        if: github.event.inputs.runner_type == 'github-hosted'
         run: |
-          echo "=== Test Results ==="
-          echo "✅ GitHub Actions is working correctly!"
-          echo "✅ Runner type: ${{ github.event.inputs.runner_type }}"
-          echo "✅ Message received: ${{ github.event.inputs.test_message }}"
-          echo "✅ Test completed at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "=========================="
+          echo "RUNNER_NAME=${{ env.RUNNER_NAME_GITHUB }}" >> $GITHUB_ENV
 
-      - name: 📢 Test notification (optional)
-        if: github.event.inputs.test_message != 'Hello from GitHub Actions!'
+      - name: ✅ Verify Flutter installation
         run: |
-          echo "Custom message detected: ${{ github.event.inputs.test_message }}"
-          echo "This step only runs when you provide a custom test message!"
+          echo "=== Verifying Flutter installation ==="
+          flutter --version
+          flutter doctor --verbose
+          echo "✅ Flutter verification completed"
+
+      # =================
+      # JAVA SETUP (GitHub-hosted only)
+      # =================
+      - name: ☕ Setup Java (GitHub-hosted)
+        if: github.event.inputs.runner_type == 'github-hosted'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # =================
+      # ENVIRONMENT SETUP
+      # =================
+      - name: 🌍 Create environment file
+        run: |
+          echo "=== Creating .env file for ${{ github.event.inputs.flavor }} ==="
+          
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              if [ -z "${{ secrets.QA_ENV }}" ]; then
+                echo "ERROR: QA_ENV secret is empty or not set"
+                exit 1
+              fi
+              echo "${{ secrets.QA_ENV }}" > .env.qa
+              cp .env.qa .env
+              echo "✅ QA environment configured"
+              ;;
+            "uat")
+              if [ -z "${{ secrets.UAT_ENV }}" ]; then
+                echo "ERROR: UAT_ENV secret is empty or not set"
+                exit 1
+              fi
+              echo "${{ secrets.UAT_ENV }}" > .env.uat
+              cp .env.uat .env
+              echo "✅ UAT environment configured"
+              ;;
+            "prod")
+              if [ -z "${{ secrets.PROD_ENV }}" ]; then
+                echo "ERROR: PROD_ENV secret is empty or not set"
+                exit 1
+              fi
+              echo "${{ secrets.PROD_ENV }}" > .env.prod
+              cp .env.prod .env
+              echo "✅ PROD environment configured"
+              ;;
+          esac
+          
+          echo "Environment: ${{ github.event.inputs.flavor }}"
+          echo "File size: $(wc -c < .env) bytes"
+
+      - name: 🔥 Setup Firebase configuration
+        run: |
+          echo "=== Setting up Firebase configuration for ${{ github.event.inputs.flavor }} ==="
+          
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              echo "${{ secrets.QA_FIREBASE_CONFIG }}" > firebase-config.env
+              ;;
+            "uat")
+              echo "${{ secrets.UAT_FIREBASE_CONFIG }}" > firebase-config.env
+              ;;
+            "prod")
+              echo "${{ secrets.PROD_FIREBASE_CONFIG }}" > firebase-config.env
+              ;;
+          esac
+          
+          # Load Firebase config and set environment variables
+          source firebase-config.env
+          echo "FIREBASE_ANDROID_APP_ID=$ANDROID_APP_ID" >> $GITHUB_ENV
+          echo "FIREBASE_IOS_APP_ID=$IOS_APP_ID" >> $GITHUB_ENV
+          echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+          
+          echo "✅ Firebase configuration loaded:"
+          echo "   Environment: ${{ github.event.inputs.flavor }}"
+          echo "   Project ID: $PROJECT_ID"
+          echo "   Android App ID: $ANDROID_APP_ID"
+
+      # =================
+      # FLUTTER BUILD PREP
+      # =================
+      - name: 📦 Generate environment files
+        run: |
+          echo "=== Generating env.dart ==="
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
+          echo "✅ env.dart generation completed"
+
+      - name: 🔑 Setup Android keystore
+        run: |
+          echo "=== Setting up Android keystore ==="
+          mkdir -p android/app
+          
+          # Decode and setup keystore
+          echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
+          
+          # Create key.properties
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+          
+          echo "✅ Keystore setup completed"
+
+      # =================
+      # BUILD PROCESS
+      # =================
+      - name: 🏗️ Build Android APK
+        run: |
+          echo "=== Building Android APK for ${{ github.event.inputs.flavor }} ==="
+          echo "Runner: ${{ github.event.inputs.runner_type }}"
+          
+          flutter build apk \
+            --flavor ${{ github.event.inputs.flavor }} \
+            --obfuscate \
+            --split-debug-info=build/debug-info/${{ github.event.inputs.flavor }} \
+            --release
+          
+          echo "✅ Android APK build completed"
+          echo "Build outputs:"
+          ls -la build/app/outputs/flutter-apk/ || echo "⚠️ APK output directory not found"
+
+      # =================
+      # FIREBASE SETUP & DISTRIBUTION
+      # =================
+      - name: 🔥 Setup Firebase service account
+        run: |
+          echo "=== Setting up Firebase credentials for ${{ github.event.inputs.flavor }} ==="
+          
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_QA }}" ]; then
+                echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_QA secret is empty or not set"
+                exit 1
+              fi
+              echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_QA }}" | base64 --decode > firebase-service-account.json
+              echo "✅ QA Firebase service account configured"
+              ;;
+            "uat")
+              if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_UAT }}" ]; then
+                echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_UAT secret is empty or not set"
+                exit 1
+              fi
+              echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_UAT }}" | base64 --decode > firebase-service-account.json
+              echo "✅ UAT Firebase service account configured"
+              ;;
+            "prod")
+              if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_PROD }}" ]; then
+                echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY_PROD secret is empty or not set"
+                exit 1
+              fi
+              echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_PROD }}" | base64 --decode > firebase-service-account.json
+              echo "✅ PROD Firebase service account configured"
+              ;;
+          esac
+          
+          echo "Firebase service account file created for: ${{ github.event.inputs.flavor }}"
+
+      - name: 🔥 Install Firebase CLI (GitHub-hosted)
+        if: github.event.inputs.runner_type == 'github-hosted'
+        run: |
+          echo "=== Installing Firebase CLI on GitHub-hosted runner ==="
+          npm install -g firebase-tools
+          firebase --version
+          echo "✅ Firebase CLI installed via npm"
+
+      - name: 📝 Prepare release notes
+        id: release_notes
+        run: |
+          echo "=== Preparing release notes ==="
+          
+          USER_NOTES="${{ github.event.inputs.release_notes }}"
+          if [ -z "$USER_NOTES" ] || [ "$USER_NOTES" = "Build from GitHub Actions" ]; then
+            USER_NOTES="Standard build from GitHub Actions"
+          fi
+          
+          # Create formatted release notes
+          cat > release-notes.txt << EOF
+          🚀 iGOT ${{ github.event.inputs.flavor }} Build #${{ github.run_number }}
+
+          📝 Release Notes:
+          $USER_NOTES
+
+          🔧 Build Details:
+          • Environment: ${{ github.event.inputs.flavor }}
+          • Build Number: #${{ github.run_number }}
+          • Triggered by: ${{ github.actor }}
+          • Branch: ${{ github.ref_name }}
+          • Date: $(date '+%Y-%m-%d %H:%M:%S UTC')
+          • Runner: ${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})
+          EOF
+          
+          echo "✅ Release notes prepared"
+          echo "User notes: $USER_NOTES"
+
+      - name: 🚀 Distribute to Firebase App Distribution
+        run: |
+          echo "=== Distributing Android APK to Firebase ==="
+          
+          export GOOGLE_APPLICATION_CREDENTIALS="firebase-service-account.json"
+          APK_PATH="build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk"
+          
+          # Verify APK exists
+          if [ ! -f "$APK_PATH" ]; then
+            echo "❌ ERROR: Android APK not found at $APK_PATH"
+            ls -la build/app/outputs/flutter-apk/
+            exit 1
+          fi
+          
+          echo "Uploading: $APK_PATH"
+          echo "Environment: ${{ github.event.inputs.flavor }}"
+          echo "App ID: ${{ env.FIREBASE_ANDROID_APP_ID }}"
+          echo "Project: ${{ env.FIREBASE_PROJECT_ID }}"
+          echo "Runner: ${{ github.event.inputs.runner_type }}"
+          
+          # Distribute to Firebase
+          firebase appdistribution:distribute "$APK_PATH" \
+            --app "${{ env.FIREBASE_ANDROID_APP_ID }}" \
+            --groups "Dev" \
+            --release-notes-file "release-notes.txt" \
+            --debug
+          
+          echo "✅ Firebase distribution completed for ${{ github.event.inputs.flavor }}!"
+
+      # =================
+      # BUILD INFO & NOTIFICATIONS
+      # =================
+      - name: 📊 Get build information
+        id: build_info
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk"
+          
+          if [ -f "$APK_PATH" ]; then
+            APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+            echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+            echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+            echo "build_status=success" >> $GITHUB_OUTPUT
+            echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
+          else
+            echo "apk_size=N/A" >> $GITHUB_OUTPUT
+            echo "apk_path=N/A" >> $GITHUB_OUTPUT
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            echo "❌ APK not found at expected location"
+          fi
+
+            - name: 📢 Send Teams notification - Success
+        if: success()
+        run: |
+          echo "=== Sending Teams notification for Success ==="
+          
+          # Calculate build duration
+          START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+          
+          # Set environment-specific styling
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              ENV_EMOJI="🧪"
+              ENV_COLOR="Good"
+              ;;
+            "uat")
+              ENV_EMOJI="🔄"
+              ENV_COLOR="Good"
+              ;;
+            "prod")
+              ENV_EMOJI="🚀"
+              ENV_COLOR="Attention"
+              ;;
+          esac
+          
+          # Set runner-specific emoji
+          if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
+            RUNNER_EMOJI="🖥️"
+          else
+            RUNNER_EMOJI="☁️"
+          fi
+          
+          # Prepare display notes (truncate if too long)
+          USER_NOTES="${{ github.event.inputs.release_notes }}"
+          if [ -z "$USER_NOTES" ] || [ "$USER_NOTES" = "Build from GitHub Actions" ]; then
+            USER_NOTES="Standard build from GitHub Actions"
+          fi
+          DISPLAY_NOTES=$(echo "$USER_NOTES" | cut -c1-100)
+          if [ ${#USER_NOTES} -gt 100 ]; then
+            DISPLAY_NOTES="$DISPLAY_NOTES..."
+          fi
+          
+          # Send Teams notification
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "attachments": [
+                {
+                  "contentType": "application/vnd.microsoft.card.adaptive",
+                  "content": {
+                    "type": "AdaptiveCard",
+                    "version": "1.2",
+                    "body": [
+                      {
+                        "type": "TextBlock",
+                        "text": "'$ENV_EMOJI' iGOT '${{ github.event.inputs.flavor }}' Build & Firebase Distribution Successful!",
+                        "weight": "Bolder",
+                        "size": "Medium",
+                        "color": "'$ENV_COLOR'"
+                      },
+                      {
+                        "type": "TextBlock",
+                        "text": "📝 Release Notes: '$DISPLAY_NOTES'",
+                        "wrap": true,
+                        "spacing": "Medium",
+                        "color": "Default"
+                      },
+                      {
+                        "type": "FactSet",
+                        "facts": [
+                          {
+                            "title": "🏷️ Environment:",
+                            "value": "${{ github.event.inputs.flavor }}"
+                          },
+                          {
+                            "title": "🔢 Build Number:",
+                            "value": "#${{ github.run_number }}"
+                          },
+                          {
+                            "title": "📦 APK Size:",
+                            "value": "${{ steps.build_info.outputs.apk_size }}"
+                          },
+                          {
+                            "title": "⏱️ Build Duration:",
+                            "value": "'${DURATION_MIN}m ${DURATION_SEC}s'"
+                          },
+                          {
+                            "title": "👤 Triggered by:",
+                            "value": "${{ github.actor }}"
+                          },
+                          {
+                            "title": "🌿 Branch:",
+                            "value": "${{ github.ref_name }}"
+                          },
+                          {
+                            "title": "🕒 Completed:",
+                            "value": "$(date '+%Y-%m-%d %H:%M:%S UTC')"
+                          },
+                          {
+                            "title": "'$RUNNER_EMOJI' Runner:",
+                            "value": "${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})"
+                          }
+                        ]
+                      }
+                    ],
+                    "actions": [
+                      {
+                        "type": "Action.OpenUrl",
+                        "title": "📱 Download from Firebase",
+                        "url": "https://appdistribution.firebase.dev/i/${{ env.FIREBASE_ANDROID_APP_ID }}"
+                      },
+                      {
+                        "type": "Action.OpenUrl",
+                        "title": "📋 View Build Logs",
+                        "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      },
+                      {
+                        "type": "Action.OpenUrl",
+                        "title": "📦 GitHub Artifacts",
+                        "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }' \
+            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
+          
+          echo "✅ Teams notification sent successfully!"
+
+            - name: 📢 Send Teams notification - Failure
+        if: failure()
+        run: |
+          echo "=== Sending Teams notification for Failure ==="
+          
+          # Set runner-specific emoji
+          if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
+            RUNNER_EMOJI="🖥️"
+          else
+            RUNNER_EMOJI="☁️"
+          fi
+          
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "attachments": [
+                {
+                  "contentType": "application/vnd.microsoft.card.adaptive",
+                  "content": {
+                    "type": "AdaptiveCard",
+                    "version": "1.2",
+                    "body": [
+                      {
+                        "type": "TextBlock",
+                        "text": "❌ iGOT '${{ github.event.inputs.flavor }}' Build Failed!",
+                        "weight": "Bolder",
+                        "size": "Medium",
+                        "color": "Attention"
+                      },
+                      {
+                        "type": "FactSet",
+                        "facts": [
+                          {
+                            "title": "🏷️ Environment:",
+                            "value": "${{ github.event.inputs.flavor }}"
+                          },
+                          {
+                            "title": "🔢 Build Number:",
+                            "value": "#${{ github.run_number }}"
+                          },
+                          {
+                            "title": "👤 Triggered by:",
+                            "value": "${{ github.actor }}"
+                          },
+                          {
+                            "title": "🌿 Branch:",
+                            "value": "${{ github.ref_name }}"
+                          },
+                          {
+                            "title": "🕒 Failed at:",
+                            "value": "$(date '+%Y-%m-%d %H:%M:%S UTC')"
+                          },
+                          {
+                            "title": "'$RUNNER_EMOJI' Runner:",
+                            "value": "${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})"
+                          }
+                        ]
+                      }
+                    ],
+                    "actions": [
+                      {
+                        "type": "Action.OpenUrl",
+                        "title": "🔍 View Error Logs",
+                        "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }' \
+            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
+          
+          echo "❌ Failure notification sent"
+
+      # =================
+      # ARTIFACTS & CLEANUP
+      # =================
+      - name: 📦 Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-build-artifacts-${{ github.event.inputs.flavor }}-${{ github.event.inputs.runner_type }}-${{ github.run_number }}
+          path: |
+            build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk
+            build/debug-info/${{ github.event.inputs.flavor }}
+            release-notes.txt
+          retention-days: 30
+
+      - name: 🧹 Cleanup sensitive files
+        if: always()
+        run: |
+          echo "=== Cleaning up sensitive files ==="
+          rm -f firebase-service-account.json
+          rm -f android/key.properties
+          rm -f firebase-config.env
+          rm -f release-notes.txt
+          echo "✅ Cleanup completed"
+# name: test-github-actions
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       test_message:
+#         description: 'Test message'
+#         required: false
+#         default: 'Hello from GitHub Actions!'
+#         type: string
+#       runner_type:
+#         description: 'Runner type to test'
+#         required: true
+#         default: 'github-hosted'
+#         type: choice
+#         options:
+#           - github-hosted
+#           - self-hosted
+
+# jobs:
+#   test:
+#     name: Test GitHub Actions
+#     runs-on: ${{ github.event.inputs.runner_type == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+#     timeout-minutes: 10
+    
+#     steps:
+#       - name: 🎯 Display test information
+#         run: |
+#           echo "=== GitHub Actions Test ==="
+#           echo "Test Message: ${{ github.event.inputs.test_message }}"
+#           echo "Runner Type: ${{ github.event.inputs.runner_type }}"
+#           echo "Triggered by: ${{ github.actor }}"
+#           echo "Repository: ${{ github.repository }}"
+#           echo "Run ID: ${{ github.run_id }}"
+#           echo "Run Number: ${{ github.run_number }}"
+#           echo "=========================="
+
+#       - name: 🖥️ System information
+#         run: |
+#           echo "=== System Information ==="
+#           echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+#           echo "Hostname: $(hostname)"
+#           echo "User: $(whoami)"
+#           echo "OS: $(uname -a)"
+#           echo "Working Directory: $(pwd)"
+#           echo "Available Space:"
+#           df -h | head -5
+#           echo "Memory:"
+#           free -h
+#           echo "=========================="
+
+#       - name: 🔧 Check basic tools
+#         run: |
+#           echo "=== Tool Versions ==="
+#           echo "Bash: $BASH_VERSION"
+#           echo "Git: $(git --version)"
+#           echo "Curl: $(curl --version | head -1)"
+#           echo "Node: $(node --version 2>/dev/null || echo 'Not installed')"
+#           echo "Python: $(python3 --version 2>/dev/null || echo 'Not installed')"
+#           echo "=========================="
+
+#       - name: 🌐 Network connectivity test
+#         run: |
+#           echo "=== Network Test ==="
+#           echo "Testing GitHub connectivity..."
+#           curl -s -I https://api.github.com | head -3
+#           echo "Testing Google connectivity..."
+#           curl -s -I https://www.google.com | head -3
+#           echo "=========================="
+
+#       - name: ✅ Test completion
+#         run: |
+#           echo "=== Test Results ==="
+#           echo "✅ GitHub Actions is working correctly!"
+#           echo "✅ Runner type: ${{ github.event.inputs.runner_type }}"
+#           echo "✅ Message received: ${{ github.event.inputs.test_message }}"
+#           echo "✅ Test completed at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+#           echo "=========================="
+
+#       - name: 📢 Test notification (optional)
+#         if: github.event.inputs.test_message != 'Hello from GitHub Actions!'
+#         run: |
+#           echo "Custom message detected: ${{ github.event.inputs.test_message }}"
+#           echo "This step only runs when you provide a custom test message!"
