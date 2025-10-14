@@ -421,14 +421,8 @@ jobs:
                             "title": "⏱️ Build Duration:",
                             "value": "'${DURATION_MIN}m ${DURATION_SEC}s'"
                           },
-                          {
-                            "title": "🔥 Firebase Project:",
-                            "value": "${{ env.FIREBASE_PROJECT_ID }}"
-                          },
-                          {
-                            "title": "📱 Android App ID:",
-                            "value": "${{ env.FIREBASE_ANDROID_APP_ID }}"
-                          },
+                         
+                    
                           {
                             "title": "👤 Triggered by:",
                             "value": "${{ github.actor }}"
@@ -470,6 +464,7 @@ jobs:
               ]
             }' \
             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
+            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
           echo "✅ Teams notification sent successfully!"
 
@@ -485,7 +480,7 @@ jobs:
             RUNNER_EMOJI="☁️"
           fi
           
-          curl -X POST \
+                   curl -X POST \
             -H "Content-Type: application/json" \
             -d '{
               "attachments": [
