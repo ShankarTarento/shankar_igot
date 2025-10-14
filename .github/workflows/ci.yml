@@ -126,59 +126,118 @@ jobs:
           echo "Build outputs:"
           ls -la build/app/outputs/flutter-apk/ || echo "APK output directory not found"
 
-   # NEW: Firebase App Distribution Steps
-      - name: Setup Firebase Service Account
+      # Get APK Info for notification
+      - name: Get APK Info
+        id: apk_info
         run: |
-          echo "=== Setting up Firebase credentials ==="
-          echo "${{ secrets.FIREBASE_SERVICE_TOKEN_BASE64 }}" | base64 --decode > firebase-service-account.json
-          echo "Firebase service account file created"
-          ls -la firebase-service-account.json
-
-      - name: Install Firebase CLI
-        run: |
-          echo "=== Installing Firebase CLI ==="
-          # Check if Firebase CLI is already installed
-          if ! command -v firebase &> /dev/null; then
-            echo "Installing Firebase CLI..."
-            curl -sL https://firebase.tools | bash
-          else
-            echo "Firebase CLI already installed"
-          fi
-          firebase --version
-
-      - name: Distribute to Firebase App Distribution
-        run: |
-          echo "=== Distributing to Firebase ==="
-          
-          # Set environment variables for Firebase
-          export GOOGLE_APPLICATION_CREDENTIALS="firebase-service-account.json"
-          
-          # Define APK path
           APK_PATH="build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk"
-          
-          # Verify APK exists
-          if [ ! -f "$APK_PATH" ]; then
-            echo "ERROR: APK not found at $APK_PATH"
-            ls -la build/app/outputs/flutter-apk/
-            exit 1
+          if [ -f "$APK_PATH" ]; then
+            APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+            echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+            echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+            echo "build_status=success" >> $GITHUB_OUTPUT
+            echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
+          else
+            echo "apk_size=N/A" >> $GITHUB_OUTPUT
+            echo "apk_path=N/A" >> $GITHUB_OUTPUT
+            echo "build_status=failed" >> $GITHUB_OUTPUT
+            echo "❌ APK not found at expected location"
           fi
+
+      # Trigger Power Automate Flow - Build Success
+      - name: Trigger Teams Notification via Power Automate - Success
+        if: success()
+        run: |
+          echo "=== Triggering Power Automate Flow for Success ==="
           
-          echo "Uploading APK: $APK_PATH"
-          echo "App ID: ${{ secrets.QA_FIREBASE_APP_ID }}"
+          # Prepare the payload with build information (Firebase references removed)
+          PAYLOAD=$(cat <<EOF
+          {
+            "buildStatus": "SUCCESS",
+            "buildNumber": "${{ github.run_number }}",
+            "flavor": "${{ matrix.flavor }}",
+            "apkSize": "${{ steps.apk_info.outputs.apk_size }}",
+            "buildTime": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
+            "triggeredBy": "${{ github.actor }}",
+            "branch": "${{ github.ref_name }}",
+            "commitSha": "${{ github.sha }}",
+            "repositoryName": "${{ github.repository }}",
+            "buildLogsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "artifactDownloadUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "workflowName": "${{ github.workflow }}",
+            "apkPath": "${{ steps.apk_info.outputs.apk_path }}",
+            "runnerName": "TI-LAP-949",
+            "buildDuration": "$(echo $(($(date +%s) - $(date -d '${{ github.event.head_commit.timestamp || github.run_started_at }}' +%s)))) seconds"
+          }
+          EOF
+          )
           
-          # Upload to Firebase App Distribution
-          firebase appdistribution:distribute "$APK_PATH" \
-            --app "${{ secrets.QA_FIREBASE_APP_ID }}" \
-            --groups "${{ 'Dev' }}" \
-            --release-notes "Build from GitHub Actions - ${{ matrix.flavor }} flavor - $(date)" \
-            --debug
+          echo "Payload to send:"
+          echo "$PAYLOAD" | jq . || echo "$PAYLOAD"
           
-          echo "Firebase distribution completed!"
+          # Send to Power Automate
+          RESPONSE=$(curl -s -w "HTTP_STATUS:%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
+          
+          HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+          RESPONSE_BODY=$(echo $RESPONSE | sed -e 's/HTTP_STATUS:.*//')
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "✅ Power Automate flow triggered successfully (Status: $HTTP_STATUS)"
+            echo "Response: $RESPONSE_BODY"
+          else
+            echo "⚠️ Power Automate flow trigger failed (Status: $HTTP_STATUS)"
+            echo "Response: $RESPONSE_BODY"
+            echo "Full response: $RESPONSE"
+          fi
+
+      # Trigger Power Automate Flow - Build Failed
+      - name: Trigger Teams Notification via Power Automate - Failure
+        if: failure()
+        run: |
+          echo "=== Triggering Power Automate Flow for Failure ==="
+          
+          # Prepare the payload for failed build (Firebase references removed)
+          PAYLOAD=$(cat <<EOF
+          {
+            "buildStatus": "FAILED",
+            "buildNumber": "${{ github.run_number }}",
+            "flavor": "${{ matrix.flavor }}",
+            "apkSize": "N/A",
+            "buildTime": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
+            "triggeredBy": "${{ github.actor }}",
+            "branch": "${{ github.ref_name }}",
+            "commitSha": "${{ github.sha }}",
+            "repositoryName": "${{ github.repository }}",
+            "buildLogsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "artifactDownloadUrl": "N/A",
+            "workflowName": "${{ github.workflow }}",
+            "errorMessage": "Build failed. Check logs for details.",
+            "apkPath": "N/A",
+            "runnerName": "TI-LAP-949"
+          }
+          EOF
+          )
+          
+          echo "Failure payload to send:"
+          echo "$PAYLOAD" | jq . || echo "$PAYLOAD"
+          
+          # Send to Power Automate
+          RESPONSE=$(curl -s -w "HTTP_STATUS:%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
+          
+          HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+          
+          echo "Failure notification sent (Status: $HTTP_STATUS)"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-build-artifacts-${{ matrix.flavor }}
+          name: flutter-build-artifacts-${{ matrix.flavor }}-${{ github.run_number }}
           path: |
             build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
             build/debug-info/${{ matrix.flavor }}
@@ -187,7 +246,6 @@ jobs:
       - name: Cleanup sensitive files
         run: |
           echo "=== Cleaning up ==="
-          rm -f firebase-service-account.json
           rm -f android/key.properties
           echo "Cleanup completed"
         if: always()
