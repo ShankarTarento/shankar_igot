@@ -274,120 +274,21 @@ on:
 jobs:
   build:
     runs-on: self-hosted
-    strategy:
-      matrix:
-        flavor: [qa]
 
     steps:
-      - name: Record build start time
-        id: start_time
-        run: |
-          echo "start_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
-          echo "Test started at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          clean: true
 
-      - name: Simulate build process
+      - name: Send Teams Notification
         run: |
-          echo "=== Simulating build process ==="
-          echo "This is a test build for flavor: ${{ matrix.flavor }}"
-          echo "Simulating 5 second build..."
-          sleep 5
-          echo "Build simulation completed!"
-
-      # Mock APK Info for testing
-      - name: Mock APK Info
-        id: apk_info
-        run: |
-          echo "apk_size=25.3M" >> $GITHUB_OUTPUT
-          echo "✅ Mock APK created (Size: 25.3M)"
-
-      # Teams Notification - Success
-      - name: Send Teams Notification - Success
-        if: success()
-        run: |
-          echo "=== Sending Teams notification ==="
-          
-          # Calculate test duration
-          START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
-          
-          # Simple test payload
-          PAYLOAD='{
-            "message": "🧪 iGOT Test Build completed successfully!",
-            "buildNumber": "${{ github.run_number }}",
-            "status": "SUCCESS ✅",
-            "flavor": "${{ matrix.flavor }}",
-            "size": "${{ steps.apk_info.outputs.apk_size }}",
-            "user": "ShankarTarento",
-            "branch": "${{ github.ref_name }}",
-            "duration": "'$DURATION' seconds",
-            "timestamp": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
-            "logsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "runner": "TI-LAP-949",
-            "testMode": "true"
-          }'
-          
-          echo "Test payload:"
-          echo "$PAYLOAD"
-          
-          # Send to Power Automate
-          echo "Sending to Power Automate..."
-          RESPONSE=$(curl -s -w "HTTP_STATUS:%{http_code}" \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d "$PAYLOAD" \
-            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
-          
-          HTTP_CODE=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
-          RESPONSE_BODY=$(echo $RESPONSE | sed -e 's/HTTP_STATUS:.*//')
-          
-          echo "HTTP Response Code: $HTTP_CODE"
-          echo "Response Body: $RESPONSE_BODY"
-          
-          if [[ "$HTTP_CODE" =~ ^[2][0-9][0-9]$ ]]; then
-            echo "✅ Teams notification sent successfully! (HTTP: $HTTP_CODE)"
-          else
-            echo "❌ Teams notification failed (HTTP: $HTTP_CODE)"
-            echo "Full response: $RESPONSE"
-            
-            # Try super simple fallback
-            echo "Trying fallback notification..."
-            curl -X POST \
-              -H "Content-Type: application/json" \
-              -d '{"text": "🧪 Test notification from GitHub Actions!"}' \
-              "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}" || echo "Fallback failed too"
-          fi
-
-      # Teams Notification - Failure
-      - name: Send Teams Notification - Failure
-        if: failure()
-        run: |
-          echo "=== Sending failure notification ==="
-          
-          PAYLOAD='{
-            "message": "❌ iGOT Test failed!",
-            "buildNumber": "${{ github.run_number }}",
-            "status": "FAILED ❌",
-            "flavor": "${{ matrix.flavor }}",
-            "user": "ShankarTarento",
-            "branch": "${{ github.ref_name }}",
-            "timestamp": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
-            "logsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "runner": "TI-LAP-949",
-            "testMode": "true"
-          }'
-          
-          echo "Failure payload: $PAYLOAD"
+          echo "Sending simple Teams notification..."
           
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
+            -d '{
+              "message": "Build completed successfully! ✅",
+              "branch": "${{ github.ref_name }}"
+            }' \
             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
-          echo "Failure notification sent"
+          echo "Notification sent!"
