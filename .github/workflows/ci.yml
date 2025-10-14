@@ -36,6 +36,7 @@ jobs:
   build:
     name: Build & Deploy iGOT App
     runs-on: ${{ github.event.inputs.runner_type == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    timeout-minutes: 90
     
     steps:
       # =================
@@ -86,15 +87,7 @@ jobs:
           flutter doctor --verbose
           echo "✅ Flutter verification completed"
 
-      # =================
-      # JAVA SETUP (GitHub-hosted only)
-      # =================
-      - name: ☕ Setup Java (GitHub-hosted)
-        if: github.event.inputs.runner_type == 'github-hosted'
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+
 
       # =================
       # ENVIRONMENT SETUP
@@ -245,6 +238,20 @@ jobs:
           
           echo "Firebase service account file created for: ${{ github.event.inputs.flavor }}"
 
+      - name: 🔥 Install Firebase CLI (Self-hosted)
+        if: github.event.inputs.runner_type == 'self-hosted'
+        run: |
+          echo "=== Installing/Checking Firebase CLI on self-hosted runner ==="
+          if ! command -v firebase &> /dev/null; then
+            echo "Installing Firebase CLI..."
+            curl -sL https://firebase.tools | bash
+            export PATH="$PATH:$HOME/.local/bin"
+            echo "PATH=$PATH:$HOME/.local/bin" >> $GITHUB_ENV
+          else
+            echo "✅ Firebase CLI already installed"
+          fi
+          firebase --version
+
       - name: 🔥 Install Firebase CLI (GitHub-hosted)
         if: github.event.inputs.runner_type == 'github-hosted'
         run: |
@@ -332,7 +339,7 @@ jobs:
             echo "❌ APK not found at expected location"
           fi
 
-            - name: 📢 Send Teams notification - Success
+      - name: 📢 Send Teams notification - Success
         if: success()
         run: |
           echo "=== Sending Teams notification for Success ==="
@@ -465,7 +472,7 @@ jobs:
           
           echo "✅ Teams notification sent successfully!"
 
-            - name: 📢 Send Teams notification - Failure
+      - name: 📢 Send Teams notification - Failure
         if: failure()
         run: |
           echo "=== Sending Teams notification for Failure ==="
@@ -562,87 +569,3 @@ jobs:
           rm -f firebase-config.env
           rm -f release-notes.txt
           echo "✅ Cleanup completed"
-# name: test-github-actions
-
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       test_message:
-#         description: 'Test message'
-#         required: false
-#         default: 'Hello from GitHub Actions!'
-#         type: string
-#       runner_type:
-#         description: 'Runner type to test'
-#         required: true
-#         default: 'github-hosted'
-#         type: choice
-#         options:
-#           - github-hosted
-#           - self-hosted
-
-# jobs:
-#   test:
-#     name: Test GitHub Actions
-#     runs-on: ${{ github.event.inputs.runner_type == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
-#     timeout-minutes: 10
-    
-#     steps:
-#       - name: 🎯 Display test information
-#         run: |
-#           echo "=== GitHub Actions Test ==="
-#           echo "Test Message: ${{ github.event.inputs.test_message }}"
-#           echo "Runner Type: ${{ github.event.inputs.runner_type }}"
-#           echo "Triggered by: ${{ github.actor }}"
-#           echo "Repository: ${{ github.repository }}"
-#           echo "Run ID: ${{ github.run_id }}"
-#           echo "Run Number: ${{ github.run_number }}"
-#           echo "=========================="
-
-#       - name: 🖥️ System information
-#         run: |
-#           echo "=== System Information ==="
-#           echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-#           echo "Hostname: $(hostname)"
-#           echo "User: $(whoami)"
-#           echo "OS: $(uname -a)"
-#           echo "Working Directory: $(pwd)"
-#           echo "Available Space:"
-#           df -h | head -5
-#           echo "Memory:"
-#           free -h
-#           echo "=========================="
-
-#       - name: 🔧 Check basic tools
-#         run: |
-#           echo "=== Tool Versions ==="
-#           echo "Bash: $BASH_VERSION"
-#           echo "Git: $(git --version)"
-#           echo "Curl: $(curl --version | head -1)"
-#           echo "Node: $(node --version 2>/dev/null || echo 'Not installed')"
-#           echo "Python: $(python3 --version 2>/dev/null || echo 'Not installed')"
-#           echo "=========================="
-
-#       - name: 🌐 Network connectivity test
-#         run: |
-#           echo "=== Network Test ==="
-#           echo "Testing GitHub connectivity..."
-#           curl -s -I https://api.github.com | head -3
-#           echo "Testing Google connectivity..."
-#           curl -s -I https://www.google.com | head -3
-#           echo "=========================="
-
-#       - name: ✅ Test completion
-#         run: |
-#           echo "=== Test Results ==="
-#           echo "✅ GitHub Actions is working correctly!"
-#           echo "✅ Runner type: ${{ github.event.inputs.runner_type }}"
-#           echo "✅ Message received: ${{ github.event.inputs.test_message }}"
-#           echo "✅ Test completed at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-#           echo "=========================="
-
-#       - name: 📢 Test notification (optional)
-#         if: github.event.inputs.test_message != 'Hello from GitHub Actions!'
-#         run: |
-#           echo "Custom message detected: ${{ github.event.inputs.test_message }}"
-#           echo "This step only runs when you provide a custom test message!"
