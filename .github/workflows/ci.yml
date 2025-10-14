@@ -1,3 +1,272 @@
+# name: generate-iGOT-build
+# on:
+#   workflow_dispatch:
+
+# jobs:
+#   build:
+#     runs-on: self-hosted
+#     strategy:
+#       matrix:
+#         flavor: [qa]
+
+#     steps:
+#       - name: Record build start time
+#         id: start_time
+#         run: |
+#           echo "start_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
+#           echo "Build started at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+
+#       - name: Debug initial environment
+#         run: |
+#           echo "=== Initial Debug ==="
+#           echo "Current directory: $(pwd)"
+#           echo "User: $(whoami)"
+#           echo "Home: $HOME"
+#           echo "Workspace: $GITHUB_WORKSPACE"
+#           echo "Contents:"
+#           ls -la
+#           echo "===================="
+
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+#         with:
+#           clean: true
+
+#       - name: Debug after checkout
+#         run: |
+#           echo "=== After Checkout Debug ==="
+#           echo "Current directory: $(pwd)"
+#           echo "Contents:"
+#           ls -la
+#           echo "Git status:"
+#           git status || echo "Not a git repository"
+#           echo "=========================="
+
+#       - name: Setup Flutter PATH
+#         run: |
+#           echo "=== Setting up Flutter ==="
+#           echo "Current PATH: $PATH"
+#           echo "Flutter location check:"
+#           ls -la /home/shankarganeshi/Software/flutter_3.27.1/bin/flutter || echo "Flutter binary not found"
+          
+#           export PATH="/home/shankarganeshi/Software/flutter_3.27.1/bin:$PATH"
+#           echo "PATH=/home/shankarganeshi/Software/flutter_3.27.1/bin:$PATH" >> $GITHUB_ENV
+          
+#           echo "Testing Flutter command:"
+#           /home/shankarganeshi/Software/flutter_3.27.1/bin/flutter --version || echo "Flutter command failed"
+#           echo "========================"
+
+#       - name: Verify Flutter setup
+#         run: |
+#           echo "=== Flutter Verification ==="
+#           echo "Current PATH: $PATH"
+#           echo "Which flutter: $(which flutter || echo 'flutter not in PATH')"
+#           flutter --version || echo "Flutter command not working"
+#           echo "========================="
+
+#       - name: Create .env file for ${{ matrix.flavor }}
+#         run: |
+#           echo "=== Creating .env file ==="
+#           echo "Working directory: $(pwd)"
+#           echo "Creating .env file for flavor: ${{ matrix.flavor }}..."
+          
+#           if [ "${{ matrix.flavor }}" = "qa" ]; then
+#             echo "Processing QA secrets..."
+#             if [ -z "${{ secrets.QA_ENV }}" ]; then
+#               echo "WARNING: QA_ENV secret is empty or not set"
+#             else
+#               echo "${{ secrets.QA_ENV }}" > .env.qa
+#               cp .env.qa .env
+#               echo ".env.qa created successfully"
+#               echo "File size: $(wc -c < .env.qa) bytes"
+#             fi
+#           elif [ "${{ matrix.flavor }}" = "uat" ]; then
+#             echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
+#             cp .env.uat .env
+#           else
+#             echo "${{ secrets.PROD_ENV_FILE }}" > .env.prod
+#             cp .env.prod .env
+#           fi
+          
+#           echo ".env file creation completed."
+#           echo "Files created:"
+#           ls -la .env* || echo "No .env files found"
+
+#       - name: Generate env.dart for ${{ matrix.flavor }}
+#         run: |
+#           echo "=== Generating env.dart ==="
+#           echo "Current directory: $(pwd)"
+#           echo "Getting Flutter dependencies..."
+#           flutter pub get
+#           echo "Running build_runner..."
+#           flutter pub run build_runner build --delete-conflicting-outputs
+#           echo "env.dart generation completed."
+
+#       - name: Set up release keystore
+#         run: |
+#           echo "=== Setting up keystore ==="
+#           echo "Creating android/app directory..."
+#           mkdir -p android/app
+#           echo "Decoding keystore..."
+#           echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
+#           echo "Keystore setup completed:"
+#           ls -l android/app/
+
+#       - name: Create key.properties for signing
+#         run: |
+#           echo "=== Creating key.properties ==="
+#           echo "Creating key.properties file..."
+#           echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
+#           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
+#           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+#           echo "storeFile=upload-keystore.jks" >> android/key.properties
+#           echo "key.properties created successfully"
+
+#       - name: Build APK for ${{ matrix.flavor }}
+#         run: |
+#           echo "=== Building APK ==="
+#           echo "Current directory: $(pwd)"
+#           echo "Building APK for flavor: ${{ matrix.flavor }}"
+#           flutter build apk --flavor ${{ matrix.flavor }} --obfuscate --split-debug-info=build/debug-info/${{ matrix.flavor }} --release
+#           echo "APK build completed"
+#           echo "Build outputs:"
+#           ls -la build/app/outputs/flutter-apk/ || echo "APK output directory not found"
+
+#       # Get APK Info for notification
+#       - name: Get APK Info
+#         id: apk_info
+#         run: |
+#           APK_PATH="build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk"
+#           if [ -f "$APK_PATH" ]; then
+#             APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+#             echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+#             echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+#             echo "build_status=success" >> $GITHUB_OUTPUT
+#             echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
+#           else
+#             echo "apk_size=N/A" >> $GITHUB_OUTPUT
+#             echo "apk_path=N/A" >> $GITHUB_OUTPUT
+#             echo "build_status=failed" >> $GITHUB_OUTPUT
+#             echo "❌ APK not found at expected location"
+#           fi
+
+#       # Send Teams Notification - Success
+#       - name: Send Teams Notification - Success
+#         if: success()
+#         run: |
+#           echo "=== Sending Teams notification for Success ==="
+          
+#           # Calculate build duration
+#           START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
+#           END_TIME=$(date +%s)
+#           DURATION=$((END_TIME - START_TIME))
+          
+#           # Create simple, reliable payload
+#           PAYLOAD='{
+#             "message": "iGOT Build completed successfully! 🎉",
+#             "buildNumber": "${{ github.run_number }}",
+#             "status": "SUCCESS ✅",
+#             "flavor": "${{ matrix.flavor }}",
+#             "size": "${{ steps.apk_info.outputs.apk_size }}",
+#             "user": "${{ github.actor }}",
+#             "branch": "${{ github.ref_name }}",
+#             "duration": "'$DURATION' seconds",
+#             "timestamp": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
+#             "logsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+#             "artifactsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+#             "runner": "TI-LAP-949",
+#             "repository": "${{ github.repository }}"
+#           }'
+          
+#           echo "Sending payload:"
+#           echo "$PAYLOAD" | jq . 2>/dev/null || echo "$PAYLOAD"
+          
+#           # Send with timeout and comprehensive error handling
+#           RESPONSE=$(timeout 30 curl -s -w "HTTPSTATUS:%{http_code}" \
+#             -X POST \
+#             -H "Content-Type: application/json" \
+#             -H "Accept: application/json" \
+#             -H "User-Agent: GitHub-Actions/1.0" \
+#             -d "$PAYLOAD" \
+#             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
+          
+#           HTTP_CODE=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+#           RESPONSE_BODY=$(echo $RESPONSE | sed -e 's/HTTPSTATUS:.*//')
+          
+#           echo "HTTP Response Code: $HTTP_CODE"
+#           echo "Response Body: $RESPONSE_BODY"
+          
+#           if [[ "$HTTP_CODE" =~ ^[2][0-9][0-9]$ ]]; then
+#             echo "✅ Teams notification sent successfully (HTTP: $HTTP_CODE)"
+#           else
+#             echo "❌ Teams notification failed (HTTP: $HTTP_CODE)"
+#             echo "Full response: $RESPONSE"
+            
+#             # Try alternative simple payload as fallback
+#             echo "Trying fallback notification..."
+#             SIMPLE_PAYLOAD='{"text": "iGOT Build #${{ github.run_number }} completed successfully! 🎉"}'
+#             curl -X POST \
+#               -H "Content-Type: application/json" \
+#               -d "$SIMPLE_PAYLOAD" \
+#               "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}" || echo "Fallback also failed"
+#           fi
+
+#       # Send Teams Notification - Failure
+#       - name: Send Teams Notification - Failure
+#         if: failure()
+#         run: |
+#           echo "=== Sending Teams notification for Failure ==="
+          
+#           # Create failure payload
+#           PAYLOAD='{
+#             "message": "iGOT Build failed! ❌",
+#             "buildNumber": "${{ github.run_number }}",
+#             "status": "FAILED ❌",
+#             "flavor": "${{ matrix.flavor }}",
+#             "size": "N/A",
+#             "user": "${{ github.actor }}",
+#             "branch": "${{ github.ref_name }}",
+#             "timestamp": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
+#             "logsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+#             "runner": "TI-LAP-949",
+#             "repository": "${{ github.repository }}",
+#             "errorMessage": "Build failed. Check logs for details."
+#           }'
+          
+#           echo "Sending failure payload:"
+#           echo "$PAYLOAD" | jq . 2>/dev/null || echo "$PAYLOAD"
+          
+#           # Send failure notification
+#           RESPONSE=$(timeout 30 curl -s -w "HTTPSTATUS:%{http_code}" \
+#             -X POST \
+#             -H "Content-Type: application/json" \
+#             -H "Accept: application/json" \
+#             -d "$PAYLOAD" \
+#             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
+          
+#           HTTP_CODE=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          
+#           if [[ "$HTTP_CODE" =~ ^[2][0-9][0-9]$ ]]; then
+#             echo "✅ Failure notification sent (HTTP: $HTTP_CODE)"
+#           else
+#             echo "❌ Failure notification failed (HTTP: $HTTP_CODE)"
+#           fi
+
+#       - name: Upload build artifacts
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: flutter-build-artifacts-${{ matrix.flavor }}-${{ github.run_number }}
+#           path: |
+#             build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
+#             build/debug-info/${{ matrix.flavor }}
+#         if: success()
+
+#       - name: Cleanup sensitive files
+#         run: |
+#           echo "=== Cleaning up ==="
+#           rm -f android/key.properties
+#           echo "Cleanup completed"
+#         if: always()
 name: generate-iGOT-build
 on:
   workflow_dispatch:
@@ -10,240 +279,115 @@ jobs:
         flavor: [qa]
 
     steps:
-      - name: Debug initial environment
+      - name: Record build start time
+        id: start_time
         run: |
-          echo "=== Initial Debug ==="
-          echo "Current directory: $(pwd)"
-          echo "User: $(whoami)"
-          echo "Home: $HOME"
-          echo "Workspace: $GITHUB_WORKSPACE"
-          echo "Contents:"
-          ls -la
-          echo "===================="
+          echo "start_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
+          echo "Test started at: $(date '+%Y-%m-%d %H:%M:%S UTC')"
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           clean: true
 
-      - name: Debug after checkout
+      - name: Simulate build process
         run: |
-          echo "=== After Checkout Debug ==="
-          echo "Current directory: $(pwd)"
-          echo "Contents:"
-          ls -la
-          echo "Git status:"
-          git status || echo "Not a git repository"
-          echo "=========================="
+          echo "=== Simulating build process ==="
+          echo "This is a test build for flavor: ${{ matrix.flavor }}"
+          echo "Simulating 5 second build..."
+          sleep 5
+          echo "Build simulation completed!"
 
-      - name: Setup Flutter PATH
-        run: |
-          echo "=== Setting up Flutter ==="
-          echo "Current PATH: $PATH"
-          echo "Flutter location check:"
-          ls -la /home/shankarganeshi/Software/flutter_3.27.1/bin/flutter || echo "Flutter binary not found"
-          
-          export PATH="/home/shankarganeshi/Software/flutter_3.27.1/bin:$PATH"
-          echo "PATH=/home/shankarganeshi/Software/flutter_3.27.1/bin:$PATH" >> $GITHUB_ENV
-          
-          echo "Testing Flutter command:"
-          /home/shankarganeshi/Software/flutter_3.27.1/bin/flutter --version || echo "Flutter command failed"
-          echo "========================"
-
-      - name: Verify Flutter setup
-        run: |
-          echo "=== Flutter Verification ==="
-          echo "Current PATH: $PATH"
-          echo "Which flutter: $(which flutter || echo 'flutter not in PATH')"
-          flutter --version || echo "Flutter command not working"
-          echo "========================="
-
-      - name: Create .env file for ${{ matrix.flavor }}
-        run: |
-          echo "=== Creating .env file ==="
-          echo "Working directory: $(pwd)"
-          echo "Creating .env file for flavor: ${{ matrix.flavor }}..."
-          
-          if [ "${{ matrix.flavor }}" = "qa" ]; then
-            echo "Processing QA secrets..."
-            if [ -z "${{ secrets.QA_ENV }}" ]; then
-              echo "WARNING: QA_ENV secret is empty or not set"
-            else
-              echo "${{ secrets.QA_ENV }}" > .env.qa
-              cp .env.qa .env
-              echo ".env.qa created successfully"
-              echo "File size: $(wc -c < .env.qa) bytes"
-            fi
-          elif [ "${{ matrix.flavor }}" = "uat" ]; then
-            echo "${{ secrets.UAT_ENV_FILE }}" > .env.uat
-            cp .env.uat .env
-          else
-            echo "${{ secrets.PROD_ENV_FILE }}" > .env.prod
-            cp .env.prod .env
-          fi
-          
-          echo ".env file creation completed."
-          echo "Files created:"
-          ls -la .env* || echo "No .env files found"
-
-      - name: Generate env.dart for ${{ matrix.flavor }}
-        run: |
-          echo "=== Generating env.dart ==="
-          echo "Current directory: $(pwd)"
-          echo "Getting Flutter dependencies..."
-          flutter pub get
-          echo "Running build_runner..."
-          flutter pub run build_runner build --delete-conflicting-outputs
-          echo "env.dart generation completed."
-
-      - name: Set up release keystore
-        run: |
-          echo "=== Setting up keystore ==="
-          echo "Creating android/app directory..."
-          mkdir -p android/app
-          echo "Decoding keystore..."
-          echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
-          echo "Keystore setup completed:"
-          ls -l android/app/
-
-      - name: Create key.properties for signing
-        run: |
-          echo "=== Creating key.properties ==="
-          echo "Creating key.properties file..."
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
-          echo "storeFile=upload-keystore.jks" >> android/key.properties
-          echo "key.properties created successfully"
-
-      - name: Build APK for ${{ matrix.flavor }}
-        run: |
-          echo "=== Building APK ==="
-          echo "Current directory: $(pwd)"
-          echo "Building APK for flavor: ${{ matrix.flavor }}"
-          flutter build apk --flavor ${{ matrix.flavor }} --obfuscate --split-debug-info=build/debug-info/${{ matrix.flavor }} --release
-          echo "APK build completed"
-          echo "Build outputs:"
-          ls -la build/app/outputs/flutter-apk/ || echo "APK output directory not found"
-
-      # Get APK Info for notification
-      - name: Get APK Info
+      # Mock APK Info for testing
+      - name: Mock APK Info
         id: apk_info
         run: |
-          APK_PATH="build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk"
-          if [ -f "$APK_PATH" ]; then
-            APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
-            echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
-            echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-            echo "build_status=success" >> $GITHUB_OUTPUT
-            echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
-          else
-            echo "apk_size=N/A" >> $GITHUB_OUTPUT
-            echo "apk_path=N/A" >> $GITHUB_OUTPUT
-            echo "build_status=failed" >> $GITHUB_OUTPUT
-            echo "❌ APK not found at expected location"
-          fi
+          echo "apk_size=25.3M" >> $GITHUB_OUTPUT
+          echo "✅ Mock APK created (Size: 25.3M)"
 
-      # Trigger Power Automate Flow - Build Success
-      - name: Trigger Teams Notification via Power Automate - Success
+      # Teams Notification - Success
+      - name: Send Teams Notification - Success
         if: success()
         run: |
-          echo "=== Triggering Power Automate Flow for Success ==="
+          echo "=== Sending Teams notification ==="
           
-          # Prepare the payload with build information (Firebase references removed)
-          PAYLOAD=$(cat <<EOF
-          {
-            "buildStatus": "SUCCESS",
+          # Calculate test duration
+          START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          
+          # Simple test payload
+          PAYLOAD='{
+            "message": "🧪 iGOT Test Build completed successfully!",
             "buildNumber": "${{ github.run_number }}",
+            "status": "SUCCESS ✅",
             "flavor": "${{ matrix.flavor }}",
-            "apkSize": "${{ steps.apk_info.outputs.apk_size }}",
-            "triggeredBy": "${{ github.actor }}",
+            "size": "${{ steps.apk_info.outputs.apk_size }}",
+            "user": "ShankarTarento",
             "branch": "${{ github.ref_name }}",
-            "commitSha": "${{ github.sha }}",
-            "repositoryName": "${{ github.repository }}",
-            "buildLogsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "artifactDownloadUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "workflowName": "${{ github.workflow }}",
-            "apkPath": "${{ steps.apk_info.outputs.apk_path }}",
-            "runnerName": "TI-LAP-949",
-            "buildDuration": "$(echo $(($(date +%s) - $(date -d '${{ github.event.head_commit.timestamp || github.run_started_at }}' +%s)))) seconds"
-          }
-          EOF
-          )
+            "duration": "'$DURATION' seconds",
+            "timestamp": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
+            "logsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "runner": "TI-LAP-949",
+            "testMode": "true"
+          }'
           
-          echo "Payload to send:"
-          echo "$PAYLOAD" | jq . || echo "$PAYLOAD"
+          echo "Test payload:"
+          echo "$PAYLOAD"
           
           # Send to Power Automate
+          echo "Sending to Power Automate..."
           RESPONSE=$(curl -s -w "HTTP_STATUS:%{http_code}" \
+            -X POST \
             -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
             -d "$PAYLOAD" \
             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
           
-          HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+          HTTP_CODE=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
           RESPONSE_BODY=$(echo $RESPONSE | sed -e 's/HTTP_STATUS:.*//')
           
-          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-            echo "✅ Power Automate flow triggered successfully (Status: $HTTP_STATUS)"
-            echo "Response: $RESPONSE_BODY"
+          echo "HTTP Response Code: $HTTP_CODE"
+          echo "Response Body: $RESPONSE_BODY"
+          
+          if [[ "$HTTP_CODE" =~ ^[2][0-9][0-9]$ ]]; then
+            echo "✅ Teams notification sent successfully! (HTTP: $HTTP_CODE)"
           else
-            echo "⚠️ Power Automate flow trigger failed (Status: $HTTP_STATUS)"
-            echo "Response: $RESPONSE_BODY"
+            echo "❌ Teams notification failed (HTTP: $HTTP_CODE)"
             echo "Full response: $RESPONSE"
+            
+            # Try super simple fallback
+            echo "Trying fallback notification..."
+            curl -X POST \
+              -H "Content-Type: application/json" \
+              -d '{"text": "🧪 Test notification from GitHub Actions!"}' \
+              "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}" || echo "Fallback failed too"
           fi
 
-      # Trigger Power Automate Flow - Build Failed
-      - name: Trigger Teams Notification via Power Automate - Failure
+      # Teams Notification - Failure
+      - name: Send Teams Notification - Failure
         if: failure()
         run: |
-          echo "=== Triggering Power Automate Flow for Failure ==="
+          echo "=== Sending failure notification ==="
           
-          # Prepare the payload for failed build (Firebase references removed)
-          PAYLOAD=$(cat <<EOF
-          {
-            "buildStatus": "FAILED",
+          PAYLOAD='{
+            "message": "❌ iGOT Test failed!",
             "buildNumber": "${{ github.run_number }}",
+            "status": "FAILED ❌",
             "flavor": "${{ matrix.flavor }}",
-            "apkSize": "N/A",
-            "triggeredBy": "${{ github.actor }}",
+            "user": "ShankarTarento",
             "branch": "${{ github.ref_name }}",
-            "commitSha": "${{ github.sha }}",
-            "repositoryName": "${{ github.repository }}",
-            "buildLogsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "artifactDownloadUrl": "N/A",
-            "workflowName": "${{ github.workflow }}",
-            "errorMessage": "Build failed. Check logs for details.",
-            "apkPath": "N/A",
-            "runnerName": "TI-LAP-949"
-          }
-          EOF
-          )
+            "timestamp": "$(date '+%Y-%m-%d %H:%M:%S UTC')",
+            "logsUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "runner": "TI-LAP-949",
+            "testMode": "true"
+          }'
           
-          echo "Failure payload to send:"
-          echo "$PAYLOAD" | jq . || echo "$PAYLOAD"
+          echo "Failure payload: $PAYLOAD"
           
-          # Send to Power Automate
-          RESPONSE=$(curl -s -w "HTTP_STATUS:%{http_code}" \
+          curl -X POST \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" \
-            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}")
+            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
-          HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
-          
-          echo "Failure notification sent (Status: $HTTP_STATUS)"
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-build-artifacts-${{ matrix.flavor }}-${{ github.run_number }}
-          path: |
-            build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
-            build/debug-info/${{ matrix.flavor }}
-        if: success()
-
-      - name: Cleanup sensitive files
-        run: |
-          echo "=== Cleaning up ==="
-          rm -f android/key.properties
-          echo "Cleanup completed"
-        if: always()
+          echo "Failure notification sent"
