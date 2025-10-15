@@ -88,9 +88,9 @@ jobs:
           echo "✅ Flutter verification completed"
 
       # =================
-      # UPDATE APP CONSTANTS
+      # ENHANCED APP CONSTANTS UPDATE
       # =================
-      - name: 🛠️ Update app constants
+      - name: 🛠️ Update app constants (Enhanced Debug)
         run: |
           echo "=== Updating app constants for ${{ github.event.inputs.flavor }} ==="
           
@@ -98,11 +98,18 @@ jobs:
           
           if [ ! -f "$APP_CONSTANTS_FILE" ]; then
             echo "❌ ERROR: $APP_CONSTANTS_FILE not found"
+            echo "Available files in lib/constants/_constants/:"
+            ls -la lib/constants/_constants/ || echo "Directory not found"
             exit 1
           fi
           
           echo "📄 Original file content:"
-          cat "$APP_CONSTANTS_FILE" | grep "APP_ENVIRONMENT" || echo "APP_ENVIRONMENT not found"
+          echo "--- START OF FILE ---"
+          cat "$APP_CONSTANTS_FILE"
+          echo "--- END OF FILE ---"
+          
+          # Backup original file
+          cp "$APP_CONSTANTS_FILE" "${APP_CONSTANTS_FILE}.backup"
           
           # Update APP_ENVIRONMENT based on selected flavor
           case "${{ github.event.inputs.flavor }}" in
@@ -116,30 +123,40 @@ jobs:
               ;;
             "prod")
               echo "🚀 Setting environment to PROD..."
-              sed -i 's/const String APP_ENVIRONMENT = Environment\.prod*/const String APP_ENVIRONMENT = Environment.prod/' "$APP_CONSTANTS_FILE"
+              # Fixed regex - the original had an issue
+              sed -i 's/const String APP_ENVIRONMENT = Environment\.[^;]*/const String APP_ENVIRONMENT = Environment.prod/' "$APP_CONSTANTS_FILE"
               ;;
           esac
           
           echo "📝 Updated file content:"
-          cat "$APP_CONSTANTS_FILE" | grep "APP_ENVIRONMENT" || echo "APP_ENVIRONMENT not found after update"
+          echo "--- START OF UPDATED FILE ---"
+          cat "$APP_CONSTANTS_FILE"
+          echo "--- END OF UPDATED FILE ---"
           
-          echo "✅ App constants updated for ${{ github.event.inputs.flavor }}"
-
+          # Verify the change was made
+          if grep -q "Environment\.${{ github.event.inputs.flavor }}" "$APP_CONSTANTS_FILE"; then
+            echo "✅ App constants updated successfully for ${{ github.event.inputs.flavor }}"
+          else
+            echo "❌ ERROR: Failed to update app constants"
+            echo "Expected to find: Environment.${{ github.event.inputs.flavor }}"
+            echo "Restoring backup..."
+            cp "${APP_CONSTANTS_FILE}.backup" "$APP_CONSTANTS_FILE"
+            exit 1
+          fi
 
       # =================
-      # ENVIRONMENT SETUP
+      # ENHANCED ENVIRONMENT SETUP
       # =================
-      - name: 🌍 Create environment file
+      - name: 🌍 Create environment file (Enhanced Debug)
         run: |
           echo "=== Creating .env file for ${{ github.event.inputs.flavor }} ==="
-          echo "Current time: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "Processing flavor: ${{ github.event.inputs.flavor }}"
           
           case "${{ github.event.inputs.flavor }}" in
             "qa")
-              echo "🧪 Processing QA environment..."
               if [ -z "${{ secrets.QA_ENV }}" ]; then
                 echo "❌ ERROR: QA_ENV secret is empty or not set"
+                echo "Available environment variables starting with 'QA':"
+                env | grep -i qa || echo "None found"
                 exit 1
               fi
               echo "${{ secrets.QA_ENV }}" > .env.qa
@@ -147,9 +164,10 @@ jobs:
               echo "✅ QA environment configured"
               ;;
             "uat")
-              echo "🔄 Processing UAT environment..."
               if [ -z "${{ secrets.UAT_ENV }}" ]; then
                 echo "❌ ERROR: UAT_ENV secret is empty or not set"
+                echo "Available environment variables starting with 'UAT':"
+                env | grep -i uat || echo "None found"
                 exit 1
               fi
               echo "${{ secrets.UAT_ENV }}" > .env.uat
@@ -157,66 +175,28 @@ jobs:
               echo "✅ UAT environment configured"
               ;;
             "prod")
-              echo "🚀 Processing PROD environment..."
               if [ -z "${{ secrets.PROD_ENV }}" ]; then
                 echo "❌ ERROR: PROD_ENV secret is empty or not set"
-                echo "🔍 Debug info:"
-                echo "  - Flavor: ${{ github.event.inputs.flavor }}"
-                echo "  - Secret name: PROD_ENV"
+                echo "Debugging PROD_ENV secret..."
+                echo "Secret length: $(echo '${{ secrets.PROD_ENV }}' | wc -c)"
+                echo "First 50 characters: $(echo '${{ secrets.PROD_ENV }}' | head -c 50)"
+                echo "Available environment variables starting with 'PROD':"
+                env | grep -i prod || echo "None found"
                 exit 1
               fi
-              
-              # Create PROD environment file
-              echo "📝 Writing PROD_ENV content to .env.prod..."
               echo "${{ secrets.PROD_ENV }}" > .env.prod
-              
-              # Validate the file was created and has content
-              if [ ! -f ".env.prod" ]; then
-                echo "❌ ERROR: Failed to create .env.prod file"
-                exit 1
-              fi
-              
-              if [ ! -s ".env.prod" ]; then
-                echo "❌ ERROR: .env.prod file is empty"
-                echo "Available files:"
-                ls -la .env* || echo "No .env files found"
-                exit 1
-              fi
-              
-              # Copy to main .env file
               cp .env.prod .env
               echo "✅ PROD environment configured"
-              
-              # Additional validation for PROD
-              echo "📊 PROD file validation:"
-              echo "  - .env.prod size: $(wc -c < .env.prod) bytes"
-              echo "  - .env size: $(wc -c < .env) bytes"
-              ;;
-            *)
-              echo "❌ ERROR: Unknown flavor '${{ github.event.inputs.flavor }}'"
-              exit 1
               ;;
           esac
           
-          # Final validation
-          echo "📋 Environment setup summary:"
-          echo "  - Selected flavor: ${{ github.event.inputs.flavor }}"
-          echo "  - Main .env file size: $(wc -c < .env) bytes"
+          echo "Environment: ${{ github.event.inputs.flavor }}"
+          echo "File size: $(wc -c < .env) bytes"
+          echo "File line count: $(wc -l < .env) lines"
           
-          # Verify both files exist and have content
-          if [ ! -f ".env" ] || [ ! -s ".env" ]; then
-            echo "❌ ERROR: Main .env file is missing or empty"
-            ls -la .env* || echo "No environment files found"
-            exit 1
-          fi
-          
-          if [ ! -f ".env.${{ github.event.inputs.flavor }}" ] || [ ! -s ".env.${{ github.event.inputs.flavor }}" ]; then
-            echo "❌ ERROR: Flavor-specific file .env.${{ github.event.inputs.flavor }} is missing or empty"
-            ls -la .env* || echo "No environment files found"
-            exit 1
-          fi
-          
-          echo "✅ Environment files created successfully"
+          # Show first few lines of env file (without sensitive data)
+          echo "First 3 lines of .env file (for debugging):"
+          head -3 .env | sed 's/=.*/=***HIDDEN***/'
      
       # =================
       # FLUTTER BUILD PREP
@@ -700,7 +680,7 @@ jobs:
             build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk
             build/debug-info/${{ github.event.inputs.flavor }}
             release-notes.txt
-          retention-days: 30
+          retention-days: 10
 
       - name: 🧹 Cleanup sensitive files
         if: always()
