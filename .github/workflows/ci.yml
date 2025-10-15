@@ -145,7 +145,7 @@ jobs:
           fi
 
       # =================
-      # ENHANCED ENVIRONMENT SETUP
+      # ENVIRONMENT SETUP
       # =================
       - name: 🌍 Create environment file (Enhanced Debug)
         run: |
@@ -417,20 +417,39 @@ jobs:
             exit 1
           fi
           
+          # Set environment-specific Firebase distribution groups
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              FIREBASE_GROUPS="${{ vars.FIREBASE_QA_GROUPS || 'iGot Dev' }}"
+              ;;
+            "uat")
+              FIREBASE_GROUPS="${{ vars.FIREBASE_UAT_GROUPS || 'iGot Dev' }}"
+              ;;
+            "prod")
+              FIREBASE_GROUPS="${{ vars.FIREBASE_PROD_GROUPS || 'iGot Dev' }}"
+              ;;
+            *)
+              FIREBASE_GROUPS="Dev"
+              echo "⚠️ Unknown environment, using default group: Dev"
+              ;;
+          esac
+          
           echo "Uploading: $APK_PATH"
           echo "Environment: ${{ github.event.inputs.flavor }}"
           echo "App ID: ${{ env.FIREBASE_ANDROID_APP_ID }}"
           echo "Project: ${{ env.FIREBASE_PROJECT_ID }}"
+          echo "Groups: $FIREBASE_GROUPS"
           echo "Runner: ${{ github.event.inputs.runner_type }}"
           
-          # Distribute to Firebase
+          # Distribute to Firebase with environment-specific groups
           firebase appdistribution:distribute "$APK_PATH" \
             --app "${{ env.FIREBASE_ANDROID_APP_ID }}" \
-            --groups "Dev" \
+            --groups "$FIREBASE_GROUPS" \
             --release-notes-file "release-notes.txt" \
             --debug
           
           echo "✅ Firebase distribution completed for ${{ github.event.inputs.flavor }}!"
+          echo "Distributed to groups: $FIREBASE_GROUPS"
 
       # =================
       # BUILD INFO & NOTIFICATIONS
