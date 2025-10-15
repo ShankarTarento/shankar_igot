@@ -132,11 +132,14 @@ jobs:
       - name: 🌍 Create environment file
         run: |
           echo "=== Creating .env file for ${{ github.event.inputs.flavor }} ==="
+          echo "Current time: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Processing flavor: ${{ github.event.inputs.flavor }}"
           
           case "${{ github.event.inputs.flavor }}" in
             "qa")
+              echo "🧪 Processing QA environment..."
               if [ -z "${{ secrets.QA_ENV }}" ]; then
-                echo "ERROR: QA_ENV secret is empty or not set"
+                echo "❌ ERROR: QA_ENV secret is empty or not set"
                 exit 1
               fi
               echo "${{ secrets.QA_ENV }}" > .env.qa
@@ -144,8 +147,9 @@ jobs:
               echo "✅ QA environment configured"
               ;;
             "uat")
+              echo "🔄 Processing UAT environment..."
               if [ -z "${{ secrets.UAT_ENV }}" ]; then
-                echo "ERROR: UAT_ENV secret is empty or not set"
+                echo "❌ ERROR: UAT_ENV secret is empty or not set"
                 exit 1
               fi
               echo "${{ secrets.UAT_ENV }}" > .env.uat
@@ -153,18 +157,68 @@ jobs:
               echo "✅ UAT environment configured"
               ;;
             "prod")
+              echo "🚀 Processing PROD environment..."
+              echo "PROD_ENV secret length: ${#${{ secrets.PROD_ENV }}}"
               if [ -z "${{ secrets.PROD_ENV }}" ]; then
-                echo "ERROR: PROD_ENV secret is empty or not set"
+                echo "❌ ERROR: PROD_ENV secret is empty or not set"
+                echo "🔍 Debug info:"
+                echo "  - Flavor: ${{ github.event.inputs.flavor }}"
+                echo "  - Secret name: PROD_ENV" 
+                echo "  - Secret exists: ${{ secrets.PROD_ENV != '' }}"
                 exit 1
               fi
+              
+              # Create PROD environment file with validation
+              echo "📝 Writing PROD_ENV content to .env.prod..."
               echo "${{ secrets.PROD_ENV }}" > .env.prod
+              
+              # Validate the file was created and has content
+              if [ ! -f ".env.prod" ]; then
+                echo "❌ ERROR: Failed to create .env.prod file"
+                exit 1
+              fi
+              
+              if [ ! -s ".env.prod" ]; then
+                echo "❌ ERROR: .env.prod file is empty"
+                exit 1
+              fi
+              
+              # Copy to main .env file
               cp .env.prod .env
               echo "✅ PROD environment configured"
+              
+              # Additional validation for PROD
+              echo "📊 PROD file validation:"
+              echo "  - .env.prod size: $(wc -c < .env.prod) bytes"
+              echo "  - .env size: $(wc -c < .env) bytes"
+              echo "  - First line: $(head -1 .env.prod)"
+              ;;
+            *)
+              echo "❌ ERROR: Unknown flavor '${{ github.event.inputs.flavor }}'"
+              exit 1
               ;;
           esac
           
-          echo "Environment: ${{ github.event.inputs.flavor }}"
-          echo "File size: $(wc -c < .env) bytes"
+          # Final validation
+          echo "📋 Environment setup summary:"
+          echo "  - Selected flavor: ${{ github.event.inputs.flavor }}"
+          echo "  - Main .env file size: $(wc -c < .env) bytes"
+          echo "  - Flavor-specific file: .env.${{ github.event.inputs.flavor }}"
+          
+          # Verify both files exist and have content
+          if [ ! -f ".env" ] || [ ! -s ".env" ]; then
+            echo "❌ ERROR: Main .env file is missing or empty"
+            ls -la .env* || echo "No environment files found"
+            exit 1
+          fi
+          
+          if [ ! -f ".env.${{ github.event.inputs.flavor }}" ] || [ ! -s ".env.${{ github.event.inputs.flavor }}" ]; then
+            echo "❌ ERROR: Flavor-specific file .env.${{ github.event.inputs.flavor }} is missing or empty"
+            ls -la .env* || echo "No environment files found"
+            exit 1
+          fi
+          
+          echo "✅ Environment files created successfully"
 
      
       # =================
