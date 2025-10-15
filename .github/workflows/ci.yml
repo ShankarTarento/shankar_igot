@@ -166,40 +166,14 @@ jobs:
           echo "Environment: ${{ github.event.inputs.flavor }}"
           echo "File size: $(wc -c < .env) bytes"
 
-      - name: 🔥 Setup Firebase configuration
-        run: |
-          echo "=== Setting up Firebase configuration for ${{ github.event.inputs.flavor }} ==="
-          
-          case "${{ github.event.inputs.flavor }}" in
-            "qa")
-              echo "${{ secrets.QA_FIREBASE_CONFIG }}" > firebase-config.env
-              ;;
-            "uat")
-              echo "${{ secrets.UAT_FIREBASE_CONFIG }}" > firebase-config.env
-              ;;
-            "prod")
-              echo "${{ secrets.PROD_FIREBASE_CONFIG }}" > firebase-config.env
-              ;;
-          esac
-          
-          # Load Firebase config and set environment variables
-          source firebase-config.env
-          echo "FIREBASE_ANDROID_APP_ID=$ANDROID_APP_ID" >> $GITHUB_ENV
-          echo "FIREBASE_IOS_APP_ID=$IOS_APP_ID" >> $GITHUB_ENV
-          echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
-          
-          echo "✅ Firebase configuration loaded:"
-          echo "   Environment: ${{ github.event.inputs.flavor }}"
-          echo "   Project ID: $PROJECT_ID"
-          echo "   Android App ID: $ANDROID_APP_ID"
-
-            # =================
+     
+      # =================
       # FLUTTER BUILD PREP
       # =================
       - name: 📦 Generate environment files
         run: |
           echo "=== Generating env.dart ==="
-          flutter clean
+          
           flutter pub get
           flutter pub run build_runner build --delete-conflicting-outputs
           echo "✅ env.dart generation completed"
@@ -260,6 +234,8 @@ jobs:
             ls -la android/
             exit 1
           fi
+
+
       # =================
       # BUILD PROCESS
       # =================
@@ -277,6 +253,37 @@ jobs:
           echo "✅ Android APK build completed"
           echo "Build outputs:"
           ls -la build/app/outputs/flutter-apk/ || echo "⚠️ APK output directory not found"
+
+      # =================
+      # FIREBASE CONFIGURATION
+      # =================
+      - name: 🔥 Setup Firebase configuration
+        run: |
+          echo "=== Setting up Firebase configuration for ${{ github.event.inputs.flavor }} ==="
+          
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              echo "${{ secrets.QA_FIREBASE_CONFIG }}" > firebase-config.env
+              ;;
+            "uat")
+              echo "${{ secrets.UAT_FIREBASE_CONFIG }}" > firebase-config.env
+              ;;
+            "prod")
+              echo "${{ secrets.PROD_FIREBASE_CONFIG }}" > firebase-config.env
+              ;;
+          esac
+          
+          # Load Firebase config and set environment variables
+          source firebase-config.env
+          echo "FIREBASE_ANDROID_APP_ID=$ANDROID_APP_ID" >> $GITHUB_ENV
+          echo "FIREBASE_IOS_APP_ID=$IOS_APP_ID" >> $GITHUB_ENV
+          echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+          
+          echo "✅ Firebase configuration loaded:"
+          echo "   Environment: ${{ github.event.inputs.flavor }}"
+          echo "   Project ID: $PROJECT_ID"
+          echo "   Android App ID: $ANDROID_APP_ID"
+    
 
       # =================
       # FIREBASE SETUP & DISTRIBUTION
