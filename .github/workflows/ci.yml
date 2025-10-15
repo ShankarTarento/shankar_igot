@@ -158,17 +158,15 @@ jobs:
               ;;
             "prod")
               echo "🚀 Processing PROD environment..."
-              echo "PROD_ENV secret length: ${#${{ secrets.PROD_ENV }}}"
               if [ -z "${{ secrets.PROD_ENV }}" ]; then
                 echo "❌ ERROR: PROD_ENV secret is empty or not set"
                 echo "🔍 Debug info:"
                 echo "  - Flavor: ${{ github.event.inputs.flavor }}"
-                echo "  - Secret name: PROD_ENV" 
-                echo "  - Secret exists: ${{ secrets.PROD_ENV != '' }}"
+                echo "  - Secret name: PROD_ENV"
                 exit 1
               fi
               
-              # Create PROD environment file with validation
+              # Create PROD environment file
               echo "📝 Writing PROD_ENV content to .env.prod..."
               echo "${{ secrets.PROD_ENV }}" > .env.prod
               
@@ -180,6 +178,8 @@ jobs:
               
               if [ ! -s ".env.prod" ]; then
                 echo "❌ ERROR: .env.prod file is empty"
+                echo "Available files:"
+                ls -la .env* || echo "No .env files found"
                 exit 1
               fi
               
@@ -191,7 +191,6 @@ jobs:
               echo "📊 PROD file validation:"
               echo "  - .env.prod size: $(wc -c < .env.prod) bytes"
               echo "  - .env size: $(wc -c < .env) bytes"
-              echo "  - First line: $(head -1 .env.prod)"
               ;;
             *)
               echo "❌ ERROR: Unknown flavor '${{ github.event.inputs.flavor }}'"
@@ -203,7 +202,6 @@ jobs:
           echo "📋 Environment setup summary:"
           echo "  - Selected flavor: ${{ github.event.inputs.flavor }}"
           echo "  - Main .env file size: $(wc -c < .env) bytes"
-          echo "  - Flavor-specific file: .env.${{ github.event.inputs.flavor }}"
           
           # Verify both files exist and have content
           if [ ! -f ".env" ] || [ ! -s ".env" ]; then
@@ -219,7 +217,6 @@ jobs:
           fi
           
           echo "✅ Environment files created successfully"
-
      
       # =================
       # FLUTTER BUILD PREP
