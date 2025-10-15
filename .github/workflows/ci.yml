@@ -397,239 +397,239 @@ jobs:
       # =================
       # BUILD INFO & NOTIFICATIONS
       # =================
-      - name: 📊 Get build information
-        id: build_info
-        run: |
-          APK_PATH="build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk"
+      # - name: 📊 Get build information
+      #   id: build_info
+      #   run: |
+      #     APK_PATH="build/app/outputs/flutter-apk/app-${{ github.event.inputs.flavor }}-release.apk"
           
-          if [ -f "$APK_PATH" ]; then
-            APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
-            echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
-            echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-            echo "build_status=success" >> $GITHUB_OUTPUT
-            echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
-          else
-            echo "apk_size=N/A" >> $GITHUB_OUTPUT
-            echo "apk_path=N/A" >> $GITHUB_OUTPUT
-            echo "build_status=failed" >> $GITHUB_OUTPUT
-            echo "❌ APK not found at expected location"
-          fi
+      #     if [ -f "$APK_PATH" ]; then
+      #       APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+      #       echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+      #       echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+      #       echo "build_status=success" >> $GITHUB_OUTPUT
+      #       echo "✅ APK found: $APK_PATH (Size: $APK_SIZE)"
+      #     else
+      #       echo "apk_size=N/A" >> $GITHUB_OUTPUT
+      #       echo "apk_path=N/A" >> $GITHUB_OUTPUT
+      #       echo "build_status=failed" >> $GITHUB_OUTPUT
+      #       echo "❌ APK not found at expected location"
+      #     fi
 
-      - name: 📢 Send Teams notification - Success
-        if: success()
-        run: |
-          echo "=== Sending Teams notification for Success ==="
+      # - name: 📢 Send Teams notification - Success
+      #   if: success()
+      #   run: |
+      #     echo "=== Sending Teams notification for Success ==="
           
-          # Calculate build duration
-          START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
-          DURATION_MIN=$((DURATION / 60))
-          DURATION_SEC=$((DURATION % 60))
+      #     # Calculate build duration
+      #     START_TIME="${{ steps.start_time.outputs.start_timestamp }}"
+      #     END_TIME=$(date +%s)
+      #     DURATION=$((END_TIME - START_TIME))
+      #     DURATION_MIN=$((DURATION / 60))
+      #     DURATION_SEC=$((DURATION % 60))
           
-          # Set environment-specific styling
-          case "${{ github.event.inputs.flavor }}" in
-            "qa")
-              ENV_EMOJI="🧪"
-              ENV_COLOR="Good"
-              ;;
-            "uat")
-              ENV_EMOJI="🔄"
-              ENV_COLOR="Good"
-              ;;
-            "prod")
-              ENV_EMOJI="🚀"
-              ENV_COLOR="Attention"
-              ;;
-          esac
+      #     # Set environment-specific styling
+      #     case "${{ github.event.inputs.flavor }}" in
+      #       "qa")
+      #         ENV_EMOJI="🧪"
+      #         ENV_COLOR="Good"
+      #         ;;
+      #       "uat")
+      #         ENV_EMOJI="🔄"
+      #         ENV_COLOR="Good"
+      #         ;;
+      #       "prod")
+      #         ENV_EMOJI="🚀"
+      #         ENV_COLOR="Attention"
+      #         ;;
+      #     esac
           
-          # Set runner-specific emoji
-          if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
-            RUNNER_EMOJI="🖥️"
-          else
-            RUNNER_EMOJI="☁️"
-          fi
+      #     # Set runner-specific emoji
+      #     if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
+      #       RUNNER_EMOJI="🖥️"
+      #     else
+      #       RUNNER_EMOJI="☁️"
+      #     fi
           
-          # Prepare display notes (truncate if too long)
-          USER_NOTES="${{ github.event.inputs.release_notes }}"
-          if [ -z "$USER_NOTES" ] || [ "$USER_NOTES" = "Build from GitHub Actions" ]; then
-            USER_NOTES="Standard build from GitHub Actions"
-          fi
-          DISPLAY_NOTES=$(echo "$USER_NOTES" | cut -c1-100)
-          if [ ${#USER_NOTES} -gt 100 ]; then
-            DISPLAY_NOTES="$DISPLAY_NOTES..."
-          fi
+      #     # Prepare display notes (truncate if too long)
+      #     USER_NOTES="${{ github.event.inputs.release_notes }}"
+      #     if [ -z "$USER_NOTES" ] || [ "$USER_NOTES" = "Build from GitHub Actions" ]; then
+      #       USER_NOTES="Standard build from GitHub Actions"
+      #     fi
+      #     DISPLAY_NOTES=$(echo "$USER_NOTES" | cut -c1-100)
+      #     if [ ${#USER_NOTES} -gt 100 ]; then
+      #       DISPLAY_NOTES="$DISPLAY_NOTES..."
+      #     fi
           
-          # Escape quotes in display notes for JSON
-          DISPLAY_NOTES=$(echo "$DISPLAY_NOTES" | sed 's/"/\\"/g')
+      #     # Escape quotes in display notes for JSON
+      #     DISPLAY_NOTES=$(echo "$DISPLAY_NOTES" | sed 's/"/\\"/g')
           
-          # Get current timestamp
-          COMPLETED_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
+      #     # Get current timestamp
+      #     COMPLETED_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
           
-          # Send Teams notification
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"attachments\": [
-                {
-                  \"contentType\": \"application/vnd.microsoft.card.adaptive\",
-                  \"content\": {
-                    \"type\": \"AdaptiveCard\",
-                    \"version\": \"1.2\",
-                    \"body\": [
-                      {
-                        \"type\": \"TextBlock\",
-                        \"text\": \"${ENV_EMOJI} iGOT '${{ github.event.inputs.flavor }}' Build & Firebase Distribution Successful!\",
-                        \"weight\": \"Bolder\",
-                        \"size\": \"Medium\",
-                        \"color\": \"${ENV_COLOR}\"
-                      },
-                      {
-                        \"type\": \"TextBlock\",
-                        \"text\": \"📝 Release Notes: ${DISPLAY_NOTES}\",
-                        \"wrap\": true,
-                        \"spacing\": \"Medium\",
-                        \"color\": \"Default\"
-                      },
-                      {
-                        \"type\": \"FactSet\",
-                        \"facts\": [
-                          {
-                            \"title\": \"🏷️ Environment:\",
-                            \"value\": \"${{ github.event.inputs.flavor }}\"
-                          },
-                          {
-                            \"title\": \"🔢 Build Number:\",
-                            \"value\": \"#${{ github.run_number }}\"
-                          },
-                          {
-                            \"title\": \"📦 APK Size:\",
-                            \"value\": \"${{ steps.build_info.outputs.apk_size }}\"
-                          },
-                          {
-                            \"title\": \"⏱️ Build Duration:\",
-                            \"value\": \"${DURATION_MIN}m ${DURATION_SEC}s\"
-                          },
-                          {
-                            \"title\": \"👤 Triggered by:\",
-                            \"value\": \"${{ github.actor }}\"
-                          },
-                          {
-                            \"title\": \"🌿 Branch:\",
-                            \"value\": \"${{ github.ref_name }}\"
-                          },
-                          {
-                            \"title\": \"🕒 Completed:\",
-                            \"value\": \"${COMPLETED_TIME}\"
-                          },
-                          {
-                            \"title\": \"${RUNNER_EMOJI} Runner:\",
-                            \"value\": \"${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})\"
-                          }
-                        ]
-                      }
-                    ],
-                    \"actions\": [
-                      {
-                        \"type\": \"Action.OpenUrl\",
-                        \"title\": \"📱 Download from Firebase\",
-                        \"url\": \"https://appdistribution.firebase.dev/i/${{ env.FIREBASE_ANDROID_APP_ID }}\"
-                      },
-                      {
-                        \"type\": \"Action.OpenUrl\",
-                        \"title\": \"📋 View Build Logs\",
-                        \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
-                      },
-                      {
-                        \"type\": \"Action.OpenUrl\",
-                        \"title\": \"📦 GitHub Artifacts\",
-                        \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }" \
-            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
+      #     # Send Teams notification
+      #     curl -X POST \
+      #       -H "Content-Type: application/json" \
+      #       -d "{
+      #         \"attachments\": [
+      #           {
+      #             \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+      #             \"content\": {
+      #               \"type\": \"AdaptiveCard\",
+      #               \"version\": \"1.2\",
+      #               \"body\": [
+      #                 {
+      #                   \"type\": \"TextBlock\",
+      #                   \"text\": \"${ENV_EMOJI} iGOT '${{ github.event.inputs.flavor }}' Build & Firebase Distribution Successful!\",
+      #                   \"weight\": \"Bolder\",
+      #                   \"size\": \"Medium\",
+      #                   \"color\": \"${ENV_COLOR}\"
+      #                 },
+      #                 {
+      #                   \"type\": \"TextBlock\",
+      #                   \"text\": \"📝 Release Notes: ${DISPLAY_NOTES}\",
+      #                   \"wrap\": true,
+      #                   \"spacing\": \"Medium\",
+      #                   \"color\": \"Default\"
+      #                 },
+      #                 {
+      #                   \"type\": \"FactSet\",
+      #                   \"facts\": [
+      #                     {
+      #                       \"title\": \"🏷️ Environment:\",
+      #                       \"value\": \"${{ github.event.inputs.flavor }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"🔢 Build Number:\",
+      #                       \"value\": \"#${{ github.run_number }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"📦 APK Size:\",
+      #                       \"value\": \"${{ steps.build_info.outputs.apk_size }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"⏱️ Build Duration:\",
+      #                       \"value\": \"${DURATION_MIN}m ${DURATION_SEC}s\"
+      #                     },
+      #                     {
+      #                       \"title\": \"👤 Triggered by:\",
+      #                       \"value\": \"${{ github.actor }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"🌿 Branch:\",
+      #                       \"value\": \"${{ github.ref_name }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"🕒 Completed:\",
+      #                       \"value\": \"${COMPLETED_TIME}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"${RUNNER_EMOJI} Runner:\",
+      #                       \"value\": \"${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})\"
+      #                     }
+      #                   ]
+      #                 }
+      #               ],
+      #               \"actions\": [
+      #                 {
+      #                   \"type\": \"Action.OpenUrl\",
+      #                   \"title\": \"📱 Download from Firebase\",
+      #                   \"url\": \"https://appdistribution.firebase.dev/i/${{ env.FIREBASE_ANDROID_APP_ID }}\"
+      #                 },
+      #                 {
+      #                   \"type\": \"Action.OpenUrl\",
+      #                   \"title\": \"📋 View Build Logs\",
+      #                   \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+      #                 },
+      #                 {
+      #                   \"type\": \"Action.OpenUrl\",
+      #                   \"title\": \"📦 GitHub Artifacts\",
+      #                   \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+      #                 }
+      #               ]
+      #             }
+      #           }
+      #         ]
+      #       }" \
+      #       "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
-          echo "✅ Teams notification sent successfully!"
+      #     echo "✅ Teams notification sent successfully!"
 
-      - name: 📢 Send Teams notification - Failure
-        if: failure()
-        run: |
-          echo "=== Sending Teams notification for Failure ==="
+      # - name: 📢 Send Teams notification - Failure
+      #   if: failure()
+      #   run: |
+      #     echo "=== Sending Teams notification for Failure ==="
           
-          # Set runner-specific emoji
-          if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
-            RUNNER_EMOJI="🖥️"
-          else
-            RUNNER_EMOJI="☁️"
-          fi
+      #     # Set runner-specific emoji
+      #     if [ "${{ github.event.inputs.runner_type }}" = "self-hosted" ]; then
+      #       RUNNER_EMOJI="🖥️"
+      #     else
+      #       RUNNER_EMOJI="☁️"
+      #     fi
           
-          # Get current timestamp
-          FAILED_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
+      #     # Get current timestamp
+      #     FAILED_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
           
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"attachments\": [
-                {
-                  \"contentType\": \"application/vnd.microsoft.card.adaptive\",
-                  \"content\": {
-                    \"type\": \"AdaptiveCard\",
-                    \"version\": \"1.2\",
-                    \"body\": [
-                      {
-                        \"type\": \"TextBlock\",
-                        \"text\": \"❌ iGOT '${{ github.event.inputs.flavor }}' Build Failed!\",
-                        \"weight\": \"Bolder\",
-                        \"size\": \"Medium\",
-                        \"color\": \"Attention\"
-                      },
-                      {
-                        \"type\": \"FactSet\",
-                        \"facts\": [
-                          {
-                            \"title\": \"🏷️ Environment:\",
-                            \"value\": \"${{ github.event.inputs.flavor }}\"
-                          },
-                          {
-                            \"title\": \"🔢 Build Number:\",
-                            \"value\": \"#${{ github.run_number }}\"
-                          },
-                          {
-                            \"title\": \"👤 Triggered by:\",
-                            \"value\": \"${{ github.actor }}\"
-                          },
-                          {
-                            \"title\": \"🌿 Branch:\",
-                            \"value\": \"${{ github.ref_name }}\"
-                          },
-                          {
-                            \"title\": \"🕒 Failed at:\",
-                            \"value\": \"${FAILED_TIME}\"
-                          },
-                          {
-                            \"title\": \"${RUNNER_EMOJI} Runner:\",
-                            \"value\": \"${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})\"
-                          }
-                        ]
-                      }
-                    ],
-                    \"actions\": [
-                      {
-                        \"type\": \"Action.OpenUrl\",
-                        \"title\": \"🔍 View Error Logs\",
-                        \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }" \
-            "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
+      #     curl -X POST \
+      #       -H "Content-Type: application/json" \
+      #       -d "{
+      #         \"attachments\": [
+      #           {
+      #             \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+      #             \"content\": {
+      #               \"type\": \"AdaptiveCard\",
+      #               \"version\": \"1.2\",
+      #               \"body\": [
+      #                 {
+      #                   \"type\": \"TextBlock\",
+      #                   \"text\": \"❌ iGOT '${{ github.event.inputs.flavor }}' Build Failed!\",
+      #                   \"weight\": \"Bolder\",
+      #                   \"size\": \"Medium\",
+      #                   \"color\": \"Attention\"
+      #                 },
+      #                 {
+      #                   \"type\": \"FactSet\",
+      #                   \"facts\": [
+      #                     {
+      #                       \"title\": \"🏷️ Environment:\",
+      #                       \"value\": \"${{ github.event.inputs.flavor }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"🔢 Build Number:\",
+      #                       \"value\": \"#${{ github.run_number }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"👤 Triggered by:\",
+      #                       \"value\": \"${{ github.actor }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"🌿 Branch:\",
+      #                       \"value\": \"${{ github.ref_name }}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"🕒 Failed at:\",
+      #                       \"value\": \"${FAILED_TIME}\"
+      #                     },
+      #                     {
+      #                       \"title\": \"${RUNNER_EMOJI} Runner:\",
+      #                       \"value\": \"${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})\"
+      #                     }
+      #                   ]
+      #                 }
+      #               ],
+      #               \"actions\": [
+      #                 {
+      #                   \"type\": \"Action.OpenUrl\",
+      #                   \"title\": \"🔍 View Error Logs\",
+      #                   \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+      #                 }
+      #               ]
+      #             }
+      #           }
+      #         ]
+      #       }" \
+      #       "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
-          echo "❌ Failure notification sent"
+      #     echo "❌ Failure notification sent"
       # =================
       # ARTIFACTS & CLEANUP
       # =================
