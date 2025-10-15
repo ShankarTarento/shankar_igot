@@ -87,6 +87,43 @@ jobs:
           flutter doctor --verbose
           echo "✅ Flutter verification completed"
 
+      # =================
+      # UPDATE APP CONSTANTS
+      # =================
+      - name: 🛠️ Update app constants
+        run: |
+          echo "=== Updating app constants for ${{ github.event.inputs.flavor }} ==="
+          
+          APP_CONSTANTS_FILE="lib/constants/_constants/app_constants.dart"
+          
+          if [ ! -f "$APP_CONSTANTS_FILE" ]; then
+            echo "❌ ERROR: $APP_CONSTANTS_FILE not found"
+            exit 1
+          fi
+          
+          echo "📄 Original file content:"
+          cat "$APP_CONSTANTS_FILE" | grep "APP_ENVIRONMENT" || echo "APP_ENVIRONMENT not found"
+          
+          # Update APP_ENVIRONMENT based on selected flavor
+          case "${{ github.event.inputs.flavor }}" in
+            "qa")
+              echo "🧪 Setting environment to QA..."
+              sed -i 's/const String APP_ENVIRONMENT = Environment\.[^;]*/const String APP_ENVIRONMENT = Environment.qa/' "$APP_CONSTANTS_FILE"
+              ;;
+            "uat")
+              echo "🔄 Setting environment to UAT..."
+              sed -i 's/const String APP_ENVIRONMENT = Environment\.[^;]*/const String APP_ENVIRONMENT = Environment.uat/' "$APP_CONSTANTS_FILE"
+              ;;
+            "prod")
+              echo "🚀 Setting environment to PROD..."
+              sed -i 's/const String APP_ENVIRONMENT = Environment\.prod*/const String APP_ENVIRONMENT = Environment.prod/' "$APP_CONSTANTS_FILE"
+              ;;
+          esac
+          
+          echo "📝 Updated file content:"
+          cat "$APP_CONSTANTS_FILE" | grep "APP_ENVIRONMENT" || echo "APP_ENVIRONMENT not found after update"
+          
+          echo "✅ App constants updated for ${{ github.event.inputs.flavor }}"
 
 
       # =================
@@ -162,6 +199,7 @@ jobs:
       - name: 📦 Generate environment files
         run: |
           echo "=== Generating env.dart ==="
+          flutter clean
           flutter pub get
           flutter pub run build_runner build --delete-conflicting-outputs
           echo "✅ env.dart generation completed"
