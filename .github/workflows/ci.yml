@@ -403,7 +403,7 @@ jobs:
           echo "✅ Release notes prepared"
           echo "User notes: $USER_NOTES"
 
-      - name: 🚀 Distribute to Firebase App Distribution
+      - name: 🚀 Distribute to Firebase App Distribution 
         run: |
           echo "=== Distributing Android APK to Firebase ==="
           
@@ -421,35 +421,65 @@ jobs:
           case "${{ github.event.inputs.flavor }}" in
             "qa")
               FIREBASE_GROUPS="${{ vars.FIREBASE_QA_GROUPS || 'iGot Dev' }}"
+              FALLBACK_EMAILS="${{ vars.FIREBASE_QA_EMAILS || 'shankar.ganesh@tarento.com' }}"
               ;;
             "uat")
               FIREBASE_GROUPS="${{ vars.FIREBASE_UAT_GROUPS || 'iGot Dev' }}"
+              FALLBACK_EMAILS="${{ vars.FIREBASE_UAT_EMAILS || 'shankar.ganesh@tarento.com' }}"
               ;;
             "prod")
               FIREBASE_GROUPS="${{ vars.FIREBASE_PROD_GROUPS || 'iGot Dev' }}"
+              FALLBACK_EMAILS="${{ vars.FIREBASE_PROD_EMAILS || 'shankar.ganesh@tarento.com' }}"
               ;;
             *)
-              FIREBASE_GROUPS="Dev"
-              echo "⚠️ Unknown environment, using default group: Dev"
+              FIREBASE_GROUPS="iGot Dev"
+              FALLBACK_EMAILS="shankar.ganesh@tarento.com"
               ;;
           esac
           
-          echo "Uploading: $APK_PATH"
+          echo "=== Distribution Configuration ==="
           echo "Environment: ${{ github.event.inputs.flavor }}"
+          echo "APK Path: $APK_PATH"
           echo "App ID: ${{ env.FIREBASE_ANDROID_APP_ID }}"
           echo "Project: ${{ env.FIREBASE_PROJECT_ID }}"
           echo "Groups: $FIREBASE_GROUPS"
+          echo "Fallback Emails: $FALLBACK_EMAILS"
           echo "Runner: ${{ github.event.inputs.runner_type }}"
           
-          # Distribute to Firebase with environment-specific groups
-          firebase appdistribution:distribute "$APK_PATH" \
+          # First, try to distribute with groups
+          echo "🎯 Attempting distribution to groups: $FIREBASE_GROUPS"
+          
+          if firebase appdistribution:distribute "$APK_PATH" \
             --app "${{ env.FIREBASE_ANDROID_APP_ID }}" \
             --groups "$FIREBASE_GROUPS" \
             --release-notes-file "release-notes.txt" \
-            --debug
+            --debug; then
+            
+            echo "✅ Firebase distribution completed successfully with groups!"
+            
+          else
+            echo "⚠️ Group distribution failed. Attempting fallback to individual emails..."
+            
+            # Fallback: Distribute to individual email addresses
+            if firebase appdistribution:distribute "$APK_PATH" \
+              --app "${{ env.FIREBASE_ANDROID_APP_ID }}" \
+              --testers "$FALLBACK_EMAILS" \
+              --release-notes-file "release-notes.txt" \
+              --debug; then
+              
+              echo "✅ Firebase distribution completed successfully with individual emails!"
+              echo "📧 Distributed to: $FALLBACK_EMAILS"
+              
+            else
+              echo "❌ Both group and email distribution failed"
+              echo "📋 Manual distribution may be required"
+              echo "🔗 Firebase Console: https://console.firebase.google.com/project/igotkarmayogi-6e10a/appdistribution"
+              echo "📱 Direct Download: Check Firebase Console for download link"
+              exit 1
+            fi
+          fi
           
-          echo "✅ Firebase distribution completed for ${{ github.event.inputs.flavor }}!"
-          echo "Distributed to groups: $FIREBASE_GROUPS"
+          echo "✅ Firebase distribution process completed for ${{ github.event.inputs.flavor }}!"
 
       # =================
       # BUILD INFO & NOTIFICATIONS
@@ -687,6 +717,9 @@ jobs:
             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
           echo "❌ Failure notification sent"
+
+
+
       # =================
       # ARTIFACTS & CLEANUP
       # =================
