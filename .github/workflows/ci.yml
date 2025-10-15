@@ -384,90 +384,96 @@ jobs:
             DISPLAY_NOTES="$DISPLAY_NOTES..."
           fi
           
+          # Escape quotes in display notes for JSON
+          DISPLAY_NOTES=$(echo "$DISPLAY_NOTES" | sed 's/"/\\"/g')
+          
+          # Get current timestamp
+          COMPLETED_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          
           # Send Teams notification
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d '{
-              "attachments": [
+            -d "{
+              \"attachments\": [
                 {
-                  "contentType": "application/vnd.microsoft.card.adaptive",
-                  "content": {
-                    "type": "AdaptiveCard",
-                    "version": "1.2",
-                    "body": [
+                  \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+                  \"content\": {
+                    \"type\": \"AdaptiveCard\",
+                    \"version\": \"1.2\",
+                    \"body\": [
                       {
-                        "type": "TextBlock",
-                        "text": "'$ENV_EMOJI' iGOT '${{ github.event.inputs.flavor }}' Build & Firebase Distribution Successful!",
-                        "weight": "Bolder",
-                        "size": "Medium",
-                        "color": "'$ENV_COLOR'"
+                        \"type\": \"TextBlock\",
+                        \"text\": \"${ENV_EMOJI} iGOT '${{ github.event.inputs.flavor }}' Build & Firebase Distribution Successful!\",
+                        \"weight\": \"Bolder\",
+                        \"size\": \"Medium\",
+                        \"color\": \"${ENV_COLOR}\"
                       },
                       {
-                        "type": "TextBlock",
-                        "text": "📝 Release Notes: '$DISPLAY_NOTES'",
-                        "wrap": true,
-                        "spacing": "Medium",
-                        "color": "Default"
+                        \"type\": \"TextBlock\",
+                        \"text\": \"📝 Release Notes: ${DISPLAY_NOTES}\",
+                        \"wrap\": true,
+                        \"spacing\": \"Medium\",
+                        \"color\": \"Default\"
                       },
                       {
-                        "type": "FactSet",
-                        "facts": [
+                        \"type\": \"FactSet\",
+                        \"facts\": [
                           {
-                            "title": "🏷️ Environment:",
-                            "value": "${{ github.event.inputs.flavor }}"
+                            \"title\": \"🏷️ Environment:\",
+                            \"value\": \"${{ github.event.inputs.flavor }}\"
                           },
                           {
-                            "title": "🔢 Build Number:",
-                            "value": "#${{ github.run_number }}"
+                            \"title\": \"🔢 Build Number:\",
+                            \"value\": \"#${{ github.run_number }}\"
                           },
                           {
-                            "title": "📦 APK Size:",
-                            "value": "${{ steps.build_info.outputs.apk_size }}"
+                            \"title\": \"📦 APK Size:\",
+                            \"value\": \"${{ steps.build_info.outputs.apk_size }}\"
                           },
                           {
-                            "title": "⏱️ Build Duration:",
-                            "value": "'${DURATION_MIN}m ${DURATION_SEC}s'"
+                            \"title\": \"⏱️ Build Duration:\",
+                            \"value\": \"${DURATION_MIN}m ${DURATION_SEC}s\"
                           },
                           {
-                            "title": "👤 Triggered by:",
-                            "value": "${{ github.actor }}"
+                            \"title\": \"👤 Triggered by:\",
+                            \"value\": \"${{ github.actor }}\"
                           },
                           {
-                            "title": "🌿 Branch:",
-                            "value": "${{ github.ref_name }}"
+                            \"title\": \"🌿 Branch:\",
+                            \"value\": \"${{ github.ref_name }}\"
                           },
                           {
-                            "title": "🕒 Completed:",
-                            "value": "$(date '+%Y-%m-%d %H:%M:%S UTC')"
+                            \"title\": \"🕒 Completed:\",
+                            \"value\": \"${COMPLETED_TIME}\"
                           },
                           {
-                            "title": "'$RUNNER_EMOJI' Runner:",
-                            "value": "${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})"
+                            \"title\": \"${RUNNER_EMOJI} Runner:\",
+                            \"value\": \"${{ github.event.inputs.runner_type }} (${{ env.RUNNER_NAME }})\"
                           }
                         ]
                       }
                     ],
-                    "actions": [
+                    \"actions\": [
                       {
-                        "type": "Action.OpenUrl",
-                        "title": "📱 Download from Firebase",
-                        "url": "https://appdistribution.firebase.dev/i/${{ env.FIREBASE_ANDROID_APP_ID }}"
+                        \"type\": \"Action.OpenUrl\",
+                        \"title\": \"📱 Download from Firebase\",
+                        \"url\": \"https://appdistribution.firebase.dev/i/${{ env.FIREBASE_ANDROID_APP_ID }}\"
                       },
                       {
-                        "type": "Action.OpenUrl",
-                        "title": "📋 View Build Logs",
-                        "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                        \"type\": \"Action.OpenUrl\",
+                        \"title\": \"📋 View Build Logs\",
+                        \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
                       },
                       {
-                        "type": "Action.OpenUrl",
-                        "title": "📦 GitHub Artifacts",
-                        "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                        \"type\": \"Action.OpenUrl\",
+                        \"title\": \"📦 GitHub Artifacts\",
+                        \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
                       }
                     ]
                   }
                 }
               ]
-            }' \
+            }" \
             "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}"
           
           echo "✅ Teams notification sent successfully!"
