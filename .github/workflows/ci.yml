@@ -36,7 +36,7 @@ jobs:
   build:
     name: Build & Deploy iGOT App
     runs-on: ${{ github.event.inputs.runner_type == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
-    timeout-minutes: 90
+    timeout-minutes: 40
     
     steps:
       # =================
@@ -193,7 +193,7 @@ jobs:
           echo "   Project ID: $PROJECT_ID"
           echo "   Android App ID: $ANDROID_APP_ID"
 
-      # =================
+            # =================
       # FLUTTER BUILD PREP
       # =================
       - name: 📦 Generate environment files
@@ -209,19 +209,57 @@ jobs:
           echo "=== Setting up Android keystore ==="
           mkdir -p android/app
           
-          # Decode and setup keystore
+          # Decode keystore from separate secret
+          if [ -z "${{ secrets.KEY_STORE }}" ]; then
+            echo "❌ ERROR: KEY_STORE secret is empty or not set"
+            exit 1
+          fi
           echo "${{ secrets.KEY_STORE }}" | base64 --decode > android/app/upload-keystore.jks
+          echo "✅ Keystore file created"
           
-          # Create key.properties
+          # Parse keystore properties from combined secret
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_PROPERTIES }}" ]; then
+            echo "❌ ERROR: ANDROID_KEYSTORE_PROPERTIES secret is empty or not set"
+            exit 1
+          fi
+          
+          echo "${{ secrets.ANDROID_KEYSTORE_PROPERTIES }}" > keystore-props.env
+          source keystore-props.env
+          
+          # Validate required properties
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "❌ ERROR: Missing required keystore properties"
+            echo "Required: KEYSTORE_PASSWORD, KEY_PASSWORD, KEY_ALIAS"
+            echo "Current properties file content:"
+            cat keystore-props.env
+            exit 1
+          fi
+          
+          # Create key.properties file
           cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
           
+          # Cleanup temporary file
+          rm -f keystore-props.env
+          
           echo "✅ Keystore setup completed"
-
+          echo "   - Keystore file: android/app/upload-keystore.jks"
+          echo "   - Properties file: android/key.properties"
+          echo "   - Key alias: $KEY_ALIAS"
+          
+          # Verify files exist
+          if [ -f "android/app/upload-keystore.jks" ] && [ -f "android/key.properties" ]; then
+            echo "✅ All keystore files created successfully"
+          else
+            echo "❌ ERROR: Failed to create keystore files"
+            ls -la android/app/
+            ls -la android/
+            exit 1
+          fi
       # =================
       # BUILD PROCESS
       # =================
